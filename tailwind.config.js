@@ -6,9 +6,9 @@ export default {
     extend: {
       colors: {
         brand: {
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
+          400: '#7DD3FC',
+          500: '#38BDF8',
+          600: '#0EA5E9',
         },
       },
       maxWidth: {

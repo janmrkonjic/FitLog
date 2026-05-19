@@ -133,10 +133,10 @@ function ProgressChart({ sessions, unit }) {
           <Line
             type="monotone"
             dataKey="displayWeight"
-            stroke="#22c55e"
+            stroke="#38BDF8"
             strokeWidth={2}
-            dot={{ fill: '#22c55e', strokeWidth: 0, r: 4 }}
-            activeDot={{ fill: '#22c55e', stroke: '#0f172a', strokeWidth: 2, r: 6 }}
+            dot={{ fill: '#38BDF8', strokeWidth: 0, r: 4 }}
+            activeDot={{ fill: '#38BDF8', stroke: '#0f172a', strokeWidth: 2, r: 6 }}
           />
         </LineChart>
       </ResponsiveContainer>

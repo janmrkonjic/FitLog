@@ -27,7 +27,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         runtimeCaching: [],
@@ -36,7 +36,7 @@ export default defineConfig({
         name: 'FitLog',
         short_name: 'FitLog',
         description: 'Personal workout tracking app',
-        theme_color: '#22c55e',
+        theme_color: '#38BDF8',
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait',
@@ -44,12 +44,12 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'icons/icon-192.png',
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'icons/icon-512.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
           },
