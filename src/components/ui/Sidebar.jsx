@@ -37,7 +37,7 @@ const navItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="hidden md:flex fixed left-0 top-0 h-full flex-col bg-slate-800 border-r border-slate-700 z-40 w-16 lg:w-60 transition-all duration-200">
+    <aside className="hidden md:flex fixed left-0 top-0 h-full flex-col bg-slate-800 border-r border-slate-700 z-40 w-16 lg:w-60 transition-all duration-200 pt-[env(safe-area-inset-top)]">
       {/* Brand */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 h-16">
         <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">

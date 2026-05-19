@@ -34,7 +34,7 @@ const tabs = [
 
 export default function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-40">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-40 pb-[env(safe-area-inset-bottom)]">
       <ul className="flex">
         {tabs.map(({ to, label, icon }) => (
           <li key={to} className="flex-1">

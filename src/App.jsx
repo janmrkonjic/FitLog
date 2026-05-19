@@ -14,8 +14,8 @@ export default function App() {
         {/* Sidebar: visible on md+, hidden on mobile */}
         <Sidebar />
 
-        {/* Main content: offset by sidebar width on md+ */}
-        <div className="md:ml-16 lg:ml-60 min-h-screen flex flex-col">
+        {/* Main content: offset by sidebar width on md+, below safe area on iOS */}
+        <div className="md:ml-16 lg:ml-60 min-h-screen flex flex-col pt-[env(safe-area-inset-top)]">
           <main className="flex-1 pb-20 md:pb-0">
             <Routes>
               <Route path="/" element={<Home />} />
