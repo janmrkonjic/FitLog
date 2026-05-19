@@ -264,8 +264,6 @@ export default function NewWorkout() {
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold text-slate-100 mb-6">New Workout</h1>
-
         {/* Workout name */}
         <div className="mb-8">
           <input
