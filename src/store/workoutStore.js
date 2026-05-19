@@ -9,6 +9,9 @@ const makeExercise = () => ({ tempId: uid(), name: '', sets: [makeSet()] })
 const useWorkoutStore = create((set) => ({
   workoutName: '',
   exercises: [],
+  workoutStartTime: null,  // Date.now() timestamp, null = not yet started
+
+  startWorkout: () => set({ workoutStartTime: Date.now() }),
 
   setWorkoutName: (name) => set({ workoutName: name }),
 
@@ -57,7 +60,7 @@ const useWorkoutStore = create((set) => ({
       ),
     })),
 
-  resetWorkout: () => set({ workoutName: '', exercises: [] }),
+  resetWorkout: () => set({ workoutName: '', exercises: [], workoutStartTime: null }),
 }))
 
 export default useWorkoutStore

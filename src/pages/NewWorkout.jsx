@@ -179,20 +179,49 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
   )
 }
 
+// ── Live timer display ────────────────────────────────────────────────────────
+
+function WorkoutTimer({ startTime }) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - startTime)
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Date.now() - startTime), 1000)
+    return () => clearInterval(id)
+  }, [startTime])
+
+  const totalSec = Math.floor(elapsed / 1000)
+  const h   = Math.floor(totalSec / 3600)
+  const m   = Math.floor((totalSec % 3600) / 60)
+  const s   = totalSec % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  const label = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+
+  return (
+    <div className="flex items-center gap-1.5 text-slate-400 text-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+        <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+      </svg>
+      <span className="font-mono tabular-nums">{label}</span>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function NewWorkout() {
   const navigate     = useNavigate()
   const nameInputRef = useRef(null)
-  const startTimeRef = useRef(Date.now())
 
   const { unit } = useUnitStore()
 
   const {
-    workoutName, exercises,
+    workoutName, exercises, workoutStartTime,
     setWorkoutName, addExercise, removeExercise,
-    updateExerciseName, addSet, removeSet, updateSet, resetWorkout,
+    updateExerciseName, addSet, removeSet, updateSet,
+    startWorkout, resetWorkout,
   } = useWorkoutStore()
+
+  const started = workoutStartTime !== null
 
   const [validationError, setValidationError] = useState(null)
   const [invalidIds,      setInvalidIds]      = useState(new Set())
@@ -201,7 +230,6 @@ export default function NewWorkout() {
     nameInputRef.current?.focus()
   }, [])
 
-  // Clear validation highlights when the user edits anything
   useEffect(() => {
     if (invalidIds.size > 0) setInvalidIds(new Set())
     if (validationError)     setValidationError(null)
@@ -213,7 +241,6 @@ export default function NewWorkout() {
       return
     }
 
-    // Find sets with empty weight or reps
     const bad = new Set()
     for (const ex of exercises) {
       for (const s of ex.sets) {
@@ -229,7 +256,9 @@ export default function NewWorkout() {
     setValidationError(null)
     setInvalidIds(new Set())
 
-    const durationMinutes = Math.round((Date.now() - startTimeRef.current) / 60000)
+    const durationMinutes = workoutStartTime
+      ? Math.round((Date.now() - workoutStartTime) / 60000)
+      : null
 
     const workoutId = await db.workouts.add({
       name: workoutName.trim() || 'Untitled Workout',
@@ -264,7 +293,8 @@ export default function NewWorkout() {
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-2xl">
-        {/* Workout name */}
+
+        {/* Workout name + live timer */}
         <div className="mb-8">
           <input
             ref={nameInputRef}
@@ -274,6 +304,11 @@ export default function NewWorkout() {
             onChange={(e) => setWorkoutName(e.target.value)}
             className="w-full bg-transparent text-3xl font-bold text-slate-100 placeholder-slate-700 focus:outline-none border-b-2 border-transparent focus:border-brand-500 pb-1 transition-colors"
           />
+          {started && (
+            <div className="mt-2">
+              <WorkoutTimer startTime={workoutStartTime} />
+            </div>
+          )}
         </div>
 
         {/* Exercise list */}
@@ -316,13 +351,23 @@ export default function NewWorkout() {
           </div>
         )}
 
-        {/* Finish workout */}
-        <button
-          onClick={handleFinish}
-          className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
-        >
-          Finish Workout
-        </button>
+        {/* Start / Finish */}
+        {started ? (
+          <button
+            onClick={handleFinish}
+            className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
+          >
+            Finish Workout
+          </button>
+        ) : (
+          <button
+            onClick={startWorkout}
+            className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
+          >
+            Start Workout
+          </button>
+        )}
+
       </div>
     </div>
   )
