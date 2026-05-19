@@ -1,148 +1,95 @@
 /**
- * Generates PWA icons as PNG files using only Node.js built-ins.
- * Outputs: public/pwa-192x192.png and public/pwa-512x512.png
+ * Generates PWA icons using a canvas-drawn heart matching the sidebar logo.
+ * Requires: npm install --save-dev canvas  (already in devDependencies)
  *
- * Design: dark navy background (#0F172A) with "FL" in sky blue (#38BDF8)
+ * Outputs: public/pwa-192x192.png  public/pwa-512x512.png
  */
-import { deflateSync } from 'zlib'
+import { createCanvas } from 'canvas'
 import { writeFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PUBLIC   = join(__dirname, '..', 'public')
+const PUBLIC    = join(__dirname, '..', 'public')
 
-const BG = [0x0F, 0x17, 0x2A]   // #0F172A
-const FG = [0x38, 0xBD, 0xF8]   // #38BDF8
+const BG    = '#0F172A'
+const HEART = '#38BDF8'
 
-// 5×7 pixel bitmap glyphs
-const GLYPHS = {
-  F: [
-    [1,1,1,1,0],
-    [1,0,0,0,0],
-    [1,1,1,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-  ],
-  L: [
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,0,0,0,0],
-    [1,1,1,1,1],
-  ],
+/**
+ * Draw a symmetric heart centered on the canvas.
+ *
+ * The heart is drawn as 4 cubic bezier curves:
+ *   - two arcs for the top lobes (left and right)
+ *   - two curves that converge to the bottom tip
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} cx  horizontal center of canvas
+ * @param {number} heartW  bounding-box width (and height) of the heart
+ * @param {number} bboxTop  y coordinate of the very top of the heart (lobe peaks)
+ */
+function drawHeart(ctx, cx, heartW, bboxTop) {
+  const heartH = heartW          // square bounding box
+  const tcH    = heartH * 0.30   // depth from lobe-peak down to center dip
+
+  // The center dip sits at (cx, bboxTop + tcH)
+  ctx.beginPath()
+  ctx.moveTo(cx, bboxTop + tcH)
+
+  // ── top-left lobe arc ────────────────────────────────────────────────────
+  ctx.bezierCurveTo(
+    cx,               bboxTop,          // cp1 – pulls curve up to peak
+    cx - heartW / 2,  bboxTop,          // cp2 – left lobe peak
+    cx - heartW / 2,  bboxTop + tcH     // end – left lobe mid-point
+  )
+
+  // ── bottom-left curve (down to tip) ──────────────────────────────────────
+  ctx.bezierCurveTo(
+    cx - heartW / 2,  bboxTop + (heartH + tcH) / 2,   // cp1
+    cx,               bboxTop + (heartH + tcH) / 2,   // cp2
+    cx,               bboxTop + heartH                 // end – bottom tip
+  )
+
+  // ── bottom-right curve (up from tip) ─────────────────────────────────────
+  ctx.bezierCurveTo(
+    cx,               bboxTop + (heartH + tcH) / 2,   // cp1
+    cx + heartW / 2,  bboxTop + (heartH + tcH) / 2,   // cp2
+    cx + heartW / 2,  bboxTop + tcH                    // end – right lobe mid-point
+  )
+
+  // ── top-right lobe arc ───────────────────────────────────────────────────
+  ctx.bezierCurveTo(
+    cx + heartW / 2,  bboxTop,          // cp1 – right lobe peak
+    cx,               bboxTop,          // cp2 – pulls curve back to dip
+    cx,               bboxTop + tcH     // end – back to center dip
+  )
+
+  ctx.closePath()
 }
 
-// ── CRC-32 ────────────────────────────────────────────────────────────────────
+function generateIcon(size) {
+  const canvas = createCanvas(size, size)
+  const ctx    = canvas.getContext('2d')
 
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256)
-  for (let i = 0; i < 256; i++) {
-    let c = i
-    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)
-    t[i] = c
-  }
-  return t
-})()
+  // Background
+  ctx.fillStyle = BG
+  ctx.fillRect(0, 0, size, size)
 
-function crc32(buf) {
-  let c = 0xFFFFFFFF
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8)
-  return (c ^ 0xFFFFFFFF) >>> 0
+  // Heart: 58 % of canvas width, visually centered
+  // Visual center of mass ≈ bboxTop + heartH * 0.58
+  const heartW  = Math.round(size * 0.58)
+  const bboxTop = Math.round(size / 2 - heartW * 0.58)
+  const cx      = size / 2
+
+  ctx.fillStyle = HEART
+  drawHeart(ctx, cx, heartW, bboxTop)
+  ctx.fill()
+
+  return canvas.toBuffer('image/png')
 }
-
-function pngChunk(type, data) {
-  const typeBytes = Buffer.from(type, 'ascii')
-  const len = Buffer.alloc(4)
-  len.writeUInt32BE(data.length)
-  const crcData = Buffer.concat([typeBytes, data])
-  const crcBuf = Buffer.alloc(4)
-  crcBuf.writeUInt32BE(crc32(crcData))
-  return Buffer.concat([len, typeBytes, data, crcBuf])
-}
-
-// ── PNG builder ───────────────────────────────────────────────────────────────
-
-function makePNG(size) {
-  // Fill pixel buffer with background color
-  const pixels = Buffer.alloc(size * size * 3)
-  for (let i = 0; i < size * size; i++) {
-    pixels[i * 3]     = BG[0]
-    pixels[i * 3 + 1] = BG[1]
-    pixels[i * 3 + 2] = BG[2]
-  }
-
-  // Scale glyph to ~55% of icon height
-  const GLYPH_H = 7
-  const GLYPH_W = 5
-  const GAP     = 1          // gap between letters in glyph units
-  const scale   = Math.floor(size * 0.55 / GLYPH_H)
-  const totalW  = (GLYPH_W + GAP + GLYPH_W) * scale
-  const totalH  = GLYPH_H * scale
-  const ox      = Math.floor((size - totalW) / 2)
-  const oy      = Math.floor((size - totalH) / 2)
-
-  const drawGlyph = (char, charOffsetX) => {
-    for (let row = 0; row < GLYPH_H; row++) {
-      for (let col = 0; col < GLYPH_W; col++) {
-        if (!GLYPHS[char][row][col]) continue
-        for (let dy = 0; dy < scale; dy++) {
-          for (let dx = 0; dx < scale; dx++) {
-            const px = ox + charOffsetX + col * scale + dx
-            const py = oy + row * scale + dy
-            if (px < 0 || px >= size || py < 0 || py >= size) continue
-            const idx = (py * size + px) * 3
-            pixels[idx]     = FG[0]
-            pixels[idx + 1] = FG[1]
-            pixels[idx + 2] = FG[2]
-          }
-        }
-      }
-    }
-  }
-
-  drawGlyph('F', 0)
-  drawGlyph('L', (GLYPH_W + GAP) * scale)
-
-  // Build scanlines: filter byte 0 (None) before each row
-  const raw = Buffer.alloc(size * (size * 3 + 1))
-  for (let y = 0; y < size; y++) {
-    const rowBase = y * (size * 3 + 1)
-    raw[rowBase] = 0
-    for (let x = 0; x < size; x++) {
-      const src = (y * size + x) * 3
-      const dst = rowBase + 1 + x * 3
-      raw[dst]     = pixels[src]
-      raw[dst + 1] = pixels[src + 1]
-      raw[dst + 2] = pixels[src + 2]
-    }
-  }
-
-  const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(size, 0)
-  ihdr.writeUInt32BE(size, 4)
-  ihdr[8]  = 8  // bit depth
-  ihdr[9]  = 2  // color type: RGB
-  ihdr[10] = 0  // compression: deflate
-  ihdr[11] = 0  // filter: adaptive
-  ihdr[12] = 0  // interlace: none
-
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),  // PNG signature
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', deflateSync(raw, { level: 9 })),
-    pngChunk('IEND', Buffer.alloc(0)),
-  ])
-}
-
-// ── Generate ──────────────────────────────────────────────────────────────────
 
 for (const size of [192, 512]) {
-  const outPath = join(PUBLIC, `pwa-${size}x${size}.png`)
-  writeFileSync(outPath, makePNG(size))
-  console.log(`✓ ${outPath}`)
+  const buf  = generateIcon(size)
+  const dest = join(PUBLIC, `pwa-${size}x${size}.png`)
+  writeFileSync(dest, buf)
+  console.log(`✓ ${dest}  (${(buf.length / 1024).toFixed(1)} KB)`)
 }
