@@ -46,10 +46,13 @@ export function useExerciseStats(exerciseName) {
             return best
           }, null)
 
-          const totalVolume = sets.reduce(
-            (sum, s) => sum + (s.weight || 0) * (s.reps || 0),
-            0
-          )
+          const totalVolume = sets.reduce((sum, s) => {
+            if (s.leftWeight !== undefined) {
+              return sum + (s.leftWeight || 0) * (s.leftReps || 0)
+                         + (s.rightWeight || 0) * (s.rightReps || 0)
+            }
+            return sum + (s.weight || 0) * (s.reps || 0)
+          }, 0)
 
           return {
             workoutId: workout.id,

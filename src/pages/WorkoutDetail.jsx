@@ -36,6 +36,7 @@ function BackLink() {
 function ExerciseTable({ exercise, workoutId, unit }) {
   const validWeights = exercise.sets.map((s) => s.weight).filter((w) => w > 0)
   const bestWeight   = validWeights.length > 0 ? Math.max(...validWeights) : null
+  const perHand      = exercise.perHand === true
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
@@ -54,49 +55,98 @@ function ExerciseTable({ exercise, workoutId, unit }) {
         ) : (
           <h2 className="text-slate-100 font-semibold text-base">Unnamed Exercise</h2>
         )}
+        {perHand && (
+          <span className="ml-2 text-xs text-brand-400/70 border border-brand-500/20 bg-brand-500/10 rounded-full px-2 py-0.5">
+            per hand
+          </span>
+        )}
       </div>
 
       {exercise.sets.length === 0 ? (
         <p className="text-slate-500 text-sm">No sets recorded.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-slate-500 uppercase tracking-wide border-b border-slate-700">
-              <th className="pb-2 pr-4 text-left font-medium w-10">Set</th>
-              <th className="pb-2 pr-4 text-right font-medium">Weight</th>
-              <th className="pb-2 pr-4 text-right font-medium">Reps</th>
-              <th className="pb-2 w-16 text-right font-medium">Best</th>
-            </tr>
-          </thead>
-          <tbody>
-            {exercise.sets.map((set) => {
-              const isBest = bestWeight !== null && set.weight === bestWeight
-              return (
-                <tr key={set.id} className={isBest ? 'text-brand-400' : 'text-slate-300'}>
-                  <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.setNumber}</td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">
-                    {set.weight > 0
-                      ? fmtWeight(set.weight, unit)
-                      : <span className="text-slate-600">—</span>}
-                  </td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">
-                    {set.reps > 0 ? set.reps : <span className="text-slate-600">—</span>}
-                  </td>
-                  <td className="py-1.5 text-right">
-                    {isBest && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                          <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
-                        </svg>
-                        Best
-                      </span>
-                    )}
-                  </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              {perHand ? (
+                <tr className="text-xs text-slate-500 uppercase tracking-wide border-b border-slate-700">
+                  <th className="pb-2 pr-4 text-left font-medium w-10">Set</th>
+                  <th className="pb-2 pr-3 text-right font-medium text-brand-500/70">L Weight</th>
+                  <th className="pb-2 pr-4 text-right font-medium text-brand-500/70">L Reps</th>
+                  <th className="pb-2 pr-3 text-right font-medium">R Weight</th>
+                  <th className="pb-2 pr-4 text-right font-medium">R Reps</th>
+                  <th className="pb-2 w-16 text-right font-medium">Best</th>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ) : (
+                <tr className="text-xs text-slate-500 uppercase tracking-wide border-b border-slate-700">
+                  <th className="pb-2 pr-4 text-left font-medium w-10">Set</th>
+                  <th className="pb-2 pr-4 text-right font-medium">Weight</th>
+                  <th className="pb-2 pr-4 text-right font-medium">Reps</th>
+                  <th className="pb-2 w-16 text-right font-medium">Best</th>
+                </tr>
+              )}
+            </thead>
+            <tbody>
+              {exercise.sets.map((set) => {
+                const isBest = bestWeight !== null && set.weight === bestWeight
+                const rowCls = isBest ? 'text-brand-400' : 'text-slate-300'
+                const dash = <span className="text-slate-600">—</span>
+
+                if (perHand) {
+                  return (
+                    <tr key={set.id} className={rowCls}>
+                      <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.setNumber}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {set.leftWeight > 0 ? fmtWeight(set.leftWeight, unit) : dash}
+                      </td>
+                      <td className="py-1.5 pr-4 text-right tabular-nums">
+                        {set.leftReps > 0 ? set.leftReps : dash}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {set.rightWeight > 0 ? fmtWeight(set.rightWeight, unit) : dash}
+                      </td>
+                      <td className="py-1.5 pr-4 text-right tabular-nums">
+                        {set.rightReps > 0 ? set.rightReps : dash}
+                      </td>
+                      <td className="py-1.5 text-right">
+                        {isBest && (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                              <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
+                            </svg>
+                            Best
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                }
+
+                return (
+                  <tr key={set.id} className={rowCls}>
+                    <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.setNumber}</td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">
+                      {set.weight > 0 ? fmtWeight(set.weight, unit) : dash}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">
+                      {set.reps > 0 ? set.reps : dash}
+                    </td>
+                    <td className="py-1.5 text-right">
+                      {isBest && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
+                          </svg>
+                          Best
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

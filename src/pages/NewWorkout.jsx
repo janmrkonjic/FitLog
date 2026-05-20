@@ -48,13 +48,108 @@ function TrashIcon() {
 // ── SetRow ────────────────────────────────────────────────────────────────────
 
 function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
-                  onWeightRef, onTabFromLastReps, invalidIds, unit }) {
-  const weightInvalid = invalidIds.has(set.tempId) && set.weight === ''
-  const repsInvalid   = invalidIds.has(set.tempId) && set.reps === ''
+                  onWeightRef, onTabFromLastReps, invalidIds, unit, perHand }) {
+  const weightInvalid      = invalidIds.has(set.tempId) && set.weight === ''
+  const repsInvalid        = invalidIds.has(set.tempId) && set.reps === ''
+  const leftWeightInvalid  = invalidIds.has(set.tempId) && set.leftWeight === ''
+  const leftRepsInvalid    = invalidIds.has(set.tempId) && set.leftReps === ''
+  const rightWeightInvalid = invalidIds.has(set.tempId) && set.rightWeight === ''
+  const rightRepsInvalid   = invalidIds.has(set.tempId) && set.rightReps === ''
 
   const inputBase = 'bg-slate-700 rounded px-2 py-1 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 text-right border'
+  const cls = (invalid) => `w-16 ${inputBase} ${invalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
   const weightCls = `w-20 ${inputBase} ${weightInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
   const repsCls   = `w-16 ${inputBase} ${repsInvalid   ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
+
+  if (perHand) {
+    return (
+      <tr>
+        <td className="py-1.5 pr-3 text-sm text-slate-400 w-8 text-center font-mono select-none">
+          {index + 1}
+        </td>
+        {/* Left hand */}
+        <td className="py-1.5 pr-1">
+          <div className="flex items-center gap-1">
+            <input
+              ref={onWeightRef}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={set.leftWeight}
+              onChange={(e) => onUpdate(exTempId, set.tempId, 'leftWeight', e.target.value)}
+              className={cls(leftWeightInvalid)}
+            />
+            <span className="text-xs text-slate-500">{unit}</span>
+          </div>
+        </td>
+        <td className="py-1.5 pr-3">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              placeholder="0"
+              value={set.leftReps}
+              onChange={(e) => onUpdate(exTempId, set.tempId, 'leftReps', e.target.value)}
+              className={cls(leftRepsInvalid)}
+            />
+            <span className="text-xs text-slate-500">reps</span>
+          </div>
+        </td>
+        {/* Right hand */}
+        <td className="py-1.5 pr-1">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={set.rightWeight}
+              onChange={(e) => onUpdate(exTempId, set.tempId, 'rightWeight', e.target.value)}
+              className={cls(rightWeightInvalid)}
+            />
+            <span className="text-xs text-slate-500">{unit}</span>
+          </div>
+        </td>
+        <td className="py-1.5 pr-2">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              placeholder="0"
+              value={set.rightReps}
+              onChange={(e) => onUpdate(exTempId, set.tempId, 'rightReps', e.target.value)}
+              onKeyDown={(e) => {
+                if (isLast && e.key === 'Tab' && !e.shiftKey) {
+                  e.preventDefault()
+                  onTabFromLastReps()
+                }
+              }}
+              className={cls(rightRepsInvalid)}
+            />
+            <span className="text-xs text-slate-500">reps</span>
+          </div>
+        </td>
+        <td className="py-1.5 w-8 text-right">
+          <button
+            onClick={() => onRemove(exTempId, set.tempId)}
+            disabled={isOnly}
+            tabIndex={-1}
+            className="text-slate-600 hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+            aria-label="Remove set"
+          >
+            <TrashIcon />
+          </button>
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <tr>
@@ -116,7 +211,7 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
 // ── ExerciseBlock ─────────────────────────────────────────────────────────────
 
 function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdateSet,
-                         onRemove, invalidIds, unit }) {
+                         onRemove, onTogglePerHand, invalidIds, unit }) {
   const nameInputRef  = useRef(null)
   const weightRefsMap = useRef(new Map())
   const prevSetsLen   = useRef(exercise.sets.length)
@@ -144,7 +239,7 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
       {/* Exercise header */}
-      <div className="flex items-start gap-2 mb-4">
+      <div className="flex items-start gap-2 mb-3">
         <input
           ref={nameInputRef}
           type="text"
@@ -163,16 +258,42 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
         </button>
       </div>
 
+      {/* Per-hand toggle */}
+      <div className="mb-3">
+        <button
+          onClick={() => onTogglePerHand(exercise.tempId)}
+          tabIndex={-1}
+          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+            exercise.perHand
+              ? 'border-brand-500 text-brand-400 bg-brand-500/10'
+              : 'border-slate-600 text-slate-500 hover:border-slate-500 hover:text-slate-400'
+          }`}
+        >
+          Per hand
+        </button>
+      </div>
+
       {/* Sets table */}
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full">
           <thead>
-            <tr className="text-xs text-slate-500 uppercase tracking-wide">
-              <th className="pb-2 pr-3 text-center font-medium w-8">#</th>
-              <th className="pb-2 pr-2 text-left font-medium">Weight</th>
-              <th className="pb-2 pr-2 text-left font-medium">Reps</th>
-              <th className="pb-2 w-8" />
-            </tr>
+            {exercise.perHand ? (
+              <tr className="text-xs text-slate-500 uppercase tracking-wide">
+                <th className="pb-2 pr-3 text-center font-medium w-8">#</th>
+                <th className="pb-2 pr-1 text-left font-medium text-brand-500/70">L Weight</th>
+                <th className="pb-2 pr-3 text-left font-medium text-brand-500/70">L Reps</th>
+                <th className="pb-2 pr-1 text-left font-medium text-slate-400">R Weight</th>
+                <th className="pb-2 pr-2 text-left font-medium text-slate-400">R Reps</th>
+                <th className="pb-2 w-8" />
+              </tr>
+            ) : (
+              <tr className="text-xs text-slate-500 uppercase tracking-wide">
+                <th className="pb-2 pr-3 text-center font-medium w-8">#</th>
+                <th className="pb-2 pr-2 text-left font-medium">Weight</th>
+                <th className="pb-2 pr-2 text-left font-medium">Reps</th>
+                <th className="pb-2 w-8" />
+              </tr>
+            )}
           </thead>
           <tbody>
             {exercise.sets.map((set, idx) => (
@@ -192,6 +313,7 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
                 onTabFromLastReps={handleAddSet}
                 invalidIds={invalidIds}
                 unit={unit}
+                perHand={exercise.perHand}
               />
             ))}
           </tbody>
@@ -251,7 +373,7 @@ export default function NewWorkout() {
   const {
     workoutName, exercises, workoutStartTime,
     setWorkoutName, addExercise, removeExercise,
-    updateExerciseName, addSet, removeSet, updateSet,
+    updateExerciseName, togglePerHand, addSet, removeSet, updateSet,
     startWorkout, resetWorkout,
   } = useWorkoutStore()
 
@@ -279,7 +401,12 @@ export default function NewWorkout() {
     const bad = new Set()
     for (const ex of exercises) {
       for (const s of ex.sets) {
-        if (s.weight === '' || s.reps === '') bad.add(s.tempId)
+        if (ex.perHand) {
+          if (s.leftWeight === '' || s.leftReps === '' || s.rightWeight === '' || s.rightReps === '')
+            bad.add(s.tempId)
+        } else {
+          if (s.weight === '' || s.reps === '') bad.add(s.tempId)
+        }
       }
     }
     if (bad.size > 0) {
@@ -308,22 +435,40 @@ export default function NewWorkout() {
       userId,
     })
 
+    const toKg = (val) => unit === 'lbs'
+      ? Math.round((parseFloat(val) / 2.2046) * 100) / 100
+      : parseFloat(val)
+
     for (const [exIdx, exercise] of exercises.entries()) {
       const exerciseId = await db.exercises.add({
         workoutId,
         name: exercise.name.trim() || 'Unnamed Exercise',
         order: exIdx,
+        perHand: exercise.perHand || false,
       })
       for (const [setIdx, s] of exercise.sets.entries()) {
-        const kgValue = unit === 'lbs'
-          ? Math.round((parseFloat(s.weight) / 2.2046) * 100) / 100
-          : parseFloat(s.weight)
-        await db.sets.add({
-          exerciseId,
-          setNumber: setIdx + 1,
-          weight: kgValue || 0,
-          reps: parseInt(s.reps, 10) || 0,
-        })
+        if (exercise.perHand) {
+          const leftKg  = toKg(s.leftWeight)  || 0
+          const rightKg = toKg(s.rightWeight) || 0
+          await db.sets.add({
+            exerciseId,
+            setNumber: setIdx + 1,
+            weight: Math.max(leftKg, rightKg),
+            reps: parseInt(s.leftReps, 10) || 0,
+            leftWeight: leftKg,
+            leftReps:   parseInt(s.leftReps, 10)  || 0,
+            rightWeight: rightKg,
+            rightReps:  parseInt(s.rightReps, 10) || 0,
+          })
+        } else {
+          const kgValue = toKg(s.weight)
+          await db.sets.add({
+            exerciseId,
+            setNumber: setIdx + 1,
+            weight: kgValue || 0,
+            reps: parseInt(s.reps, 10) || 0,
+          })
+        }
       }
     }
 
@@ -365,6 +510,7 @@ export default function NewWorkout() {
                 onRemoveSet={removeSet}
                 onUpdateSet={updateSet}
                 onRemove={removeExercise}
+                onTogglePerHand={togglePerHand}
                 invalidIds={invalidIds}
                 unit={unit}
               />

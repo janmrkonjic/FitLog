@@ -3,8 +3,13 @@ import { create } from 'zustand'
 let _uid = 1
 const uid = () => _uid++
 
-const makeSet = () => ({ tempId: uid(), weight: '', reps: '' })
-const makeExercise = () => ({ tempId: uid(), name: '', sets: [makeSet()] })
+const makeSet = () => ({
+  tempId: uid(),
+  weight: '', reps: '',
+  leftWeight: '', leftReps: '',
+  rightWeight: '', rightReps: '',
+})
+const makeExercise = () => ({ tempId: uid(), name: '', sets: [makeSet()], perHand: false })
 
 const useWorkoutStore = create((set) => ({
   workoutName: '',
@@ -27,6 +32,13 @@ const useWorkoutStore = create((set) => ({
     set((state) => ({
       exercises: state.exercises.map((e) =>
         e.tempId === exTempId ? { ...e, name } : e
+      ),
+    })),
+
+  togglePerHand: (exTempId) =>
+    set((state) => ({
+      exercises: state.exercises.map((e) =>
+        e.tempId === exTempId ? { ...e, perHand: !e.perHand } : e
       ),
     })),
 
