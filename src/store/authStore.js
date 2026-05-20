@@ -1,85 +1,61 @@
 import { create } from 'zustand'
-import { db } from '../db/db'
-
-async function hashPassword(password) {
-  const enc = new TextEncoder()
-  const buf = await crypto.subtle.digest('SHA-256', enc.encode(password))
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-function loadPersistedUser() {
-  try {
-    const raw = localStorage.getItem('fitlog_user')
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-function persistUser(user) {
-  if (user) localStorage.setItem('fitlog_user', JSON.stringify(user))
-  else localStorage.removeItem('fitlog_user')
-}
+import { supabase } from '../lib/supabase'
 
 const useAuthStore = create((set) => ({
-  user: loadPersistedUser(), // { id, username }
+  user: null,    // { id, email }
   error: null,
+  loading: true, // true until initial session check is done
 
-  register: async (username, password) => {
+  init: async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    set({
+      user: session?.user ? { id: session.user.id, email: session.user.email } : null,
+      loading: false,
+    })
+    supabase.auth.onAuthStateChange((_event, session) => {
+      set({
+        user: session?.user ? { id: session.user.id, email: session.user.email } : null,
+      })
+    })
+  },
+
+  register: async (email, password) => {
     set({ error: null })
-    const trimmed = username.trim()
+    const trimmed = email.trim()
     if (!trimmed || !password) {
-      set({ error: 'Username and password are required.' })
+      set({ error: 'Email and password are required.' })
       return false
     }
-
-    const existing = await db.users.where('username').equalsIgnoreCase(trimmed).first()
-    if (existing) {
-      set({ error: 'Username already taken.' })
+    const { data, error } = await supabase.auth.signUp({ email: trimmed, password })
+    if (error) {
+      set({ error: error.message })
       return false
     }
-
-    const hash = await hashPassword(password)
-    const isFirst = (await db.users.count()) === 0
-
-    const userId = await db.users.add({ username: trimmed, passwordHash: hash })
-
-    // First-ever registration: claim all unassigned existing workouts
-    if (isFirst) {
-      await db.workouts
-        .filter((w) => w.userId == null)
-        .modify({ userId })
+    if (data.session) {
+      set({ user: { id: data.user.id, email: data.user.email } })
+      return true
     }
-
-    const user = { id: userId, username: trimmed }
-    persistUser(user)
-    set({ user })
-    return true
+    // Email confirmation required — tell the user
+    set({ error: 'Check your email for a confirmation link, then sign in.' })
+    return false
   },
 
-  login: async (username, password) => {
+  login: async (email, password) => {
     set({ error: null })
-    const trimmed = username.trim()
-    const record = await db.users.where('username').equalsIgnoreCase(trimmed).first()
-    if (!record) {
-      set({ error: 'Invalid username or password.' })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    if (error) {
+      set({ error: error.message })
       return false
     }
-
-    const hash = await hashPassword(password)
-    if (hash !== record.passwordHash) {
-      set({ error: 'Invalid username or password.' })
-      return false
-    }
-
-    const user = { id: record.id, username: record.username }
-    persistUser(user)
-    set({ user })
+    set({ user: { id: data.user.id, email: data.user.email } })
     return true
   },
 
-  logout: () => {
-    persistUser(null)
+  logout: async () => {
+    await supabase.auth.signOut()
     set({ user: null, error: null })
   },
 

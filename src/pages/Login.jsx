@@ -7,7 +7,7 @@ export default function Login() {
   const { register, login, error, clearError } = useAuthStore()
 
   const [mode,     setMode]     = useState('login') // 'login' | 'register'
-  const [username, setUsername] = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
 
@@ -17,8 +17,8 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     const ok = mode === 'register'
-      ? await register(username, password)
-      : await login(username, password)
+      ? await register(email, password)
+      : await login(email, password)
     setLoading(false)
     if (ok) navigate('/', { replace: true })
   }
@@ -58,13 +58,13 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs text-slate-400 font-medium mb-1.5">Username</label>
+              <label className="block text-xs text-slate-400 font-medium mb-1.5">Email</label>
               <input
-                type="text"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-colors"
               />
             </div>
@@ -98,7 +98,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">
-          Data is stored locally on this device.
+          Data synced across all your devices via Supabase.
         </p>
       </div>
     </div>

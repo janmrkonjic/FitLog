@@ -35,6 +35,16 @@ const navItems = [
     ),
   },
   {
+    to: '/progress',
+    label: 'Progress',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 shrink-0">
+        <path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75ZM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 0 1-1.875-1.875V8.625ZM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 0 1 3 19.875v-6.75Z" />
+      </svg>
+    ),
+  },
+  {
     to: '/profile',
     label: 'Profile',
     end: false,
@@ -101,11 +111,11 @@ export default function Sidebar() {
         >
           <div className="w-7 h-7 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center shrink-0">
             <span className="text-brand-400 text-xs font-bold uppercase">
-              {user?.username?.[0] ?? '?'}
+              {user?.email?.[0]?.toUpperCase() ?? '?'}
             </span>
           </div>
           <span className="hidden lg:block text-slate-300 text-sm font-medium truncate">
-            {user?.username}
+            {user?.email}
           </span>
         </NavLink>
       </div>

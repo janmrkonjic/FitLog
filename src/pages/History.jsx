@@ -1,8 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
-import useAuthStore from '../store/authStore'
+import { supabase } from '../lib/supabase'
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-US', {
@@ -51,7 +49,7 @@ function EmptyState() {
 }
 
 export function WorkoutCard({ workout }) {
-  const duration = formatDuration(workout.durationMinutes)
+  const duration = formatDuration(workout.duration_minutes)
   return (
     <Link
       to={`/workout/${workout.id}`}
@@ -85,20 +83,24 @@ export function WorkoutCard({ workout }) {
   )
 }
 
+async function fetchWorkouts() {
+  const { data, error } = await supabase
+    .from('workouts')
+    .select('id, name, date, duration_minutes, exercises(id)')
+    .order('date', { ascending: false })
+
+  if (error) throw error
+
+  return data.map((w) => ({ ...w, exerciseCount: w.exercises?.length ?? 0 }))
+}
+
 export default function History() {
   const [searchQuery, setSearchQuery] = useState('')
-  const userId = useAuthStore((s) => s.user?.id)
+  const [workouts,    setWorkouts]    = useState(undefined)
 
-  const workouts = useLiveQuery(async () => {
-    const all = (await db.workouts.where('userId').equals(userId).toArray())
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-    return Promise.all(
-      all.map(async (w) => ({
-        ...w,
-        exerciseCount: await db.exercises.where('workoutId').equals(w.id).count(),
-      }))
-    )
-  }, [userId])
+  useEffect(() => {
+    fetchWorkouts().then(setWorkouts).catch(console.error)
+  }, [])
 
   const q = searchQuery.trim().toLowerCase()
   const filtered = workouts?.filter((w) => !q || w.name.toLowerCase().includes(q)) ?? []

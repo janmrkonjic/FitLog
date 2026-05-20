@@ -1,43 +1,37 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
-import useAuthStore from '../store/authStore'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const EMPTY = { sessions: [], allTimeBest: null, bestVolumeSession: null }
 
 export function useExerciseStats(exerciseName) {
-  const userId = useAuthStore((s) => s.user?.id)
+  const [result, setResult] = useState(undefined)
 
-  const result = useLiveQuery(async () => {
-    if (!exerciseName) return EMPTY
+  useEffect(() => {
+    if (!exerciseName) { setResult(EMPTY); return }
 
-    const needle = exerciseName.toLowerCase().trim()
+    async function load() {
+      const { data: exercises, error } = await supabase
+        .from('exercises')
+        .select(`
+          id,
+          workout_id,
+          workouts (id, name, date),
+          sets (id, set_number, weight, reps, left_weight, left_reps, right_weight, right_reps)
+        `)
+        .ilike('name', exerciseName.trim())
+        .order('set_number', { referencedTable: 'sets', ascending: true })
 
-    // Only include exercises from workouts belonging to the current user
-    const userWorkoutIds = new Set(
-      (await db.workouts.where('userId').equals(userId).primaryKeys())
-    )
+      if (error || !exercises) { setResult(EMPTY); return }
 
-    const exercises = (await db.exercises.toArray()).filter(
-      (e) =>
-        (e.name ?? '').toLowerCase().trim() === needle &&
-        userWorkoutIds.has(e.workoutId)
-    )
-
-    if (exercises.length === 0) return EMPTY
-
-    const sessions = (
-      await Promise.all(
-        exercises.map(async (exercise) => {
-          const workout = await db.workouts.get(exercise.workoutId)
+      const sessions = exercises
+        .map((exercise) => {
+          const workout = exercise.workouts
           if (!workout) return null
 
-          const sets = await db.sets
-            .where('exerciseId')
-            .equals(exercise.id)
-            .sortBy('setNumber')
+          const sets = (exercise.sets ?? [])
+            .slice()
+            .sort((a, b) => a.set_number - b.set_number)
 
-          // Best set: highest weight wins; same weight → more reps wins;
-          // same weight+reps → later set wins (harder when fatigued)
           const bestSet = sets.reduce((best, s) => {
             if (!best) return s
             if (s.weight > best.weight) return s
@@ -47,9 +41,9 @@ export function useExerciseStats(exerciseName) {
           }, null)
 
           const totalVolume = sets.reduce((sum, s) => {
-            if (s.leftWeight !== undefined) {
-              return sum + (s.leftWeight || 0) * (s.leftReps || 0)
-                         + (s.rightWeight || 0) * (s.rightReps || 0)
+            if (s.left_weight != null) {
+              return sum + (s.left_weight || 0) * (s.left_reps || 0)
+                         + (s.right_weight || 0) * (s.right_reps || 0)
             }
             return sum + (s.weight || 0) * (s.reps || 0)
           }, 0)
@@ -65,29 +59,30 @@ export function useExerciseStats(exerciseName) {
             totalVolume,
           }
         })
-      )
-    ).filter(Boolean)
+        .filter(Boolean)
 
-    // Newest first for display
-    sessions.sort((a, b) => new Date(b.date) - new Date(a.date))
+      sessions.sort((a, b) => new Date(b.date) - new Date(a.date))
 
-    const allTimeBest = sessions.reduce((best, session) => {
-      if (!session.bestSet) return best
-      if (!best) return session.bestSet
-      if (session.bestSet.weight > best.weight) return session.bestSet
-      if (session.bestSet.weight === best.weight && session.bestSet.reps > best.reps)
-        return session.bestSet
-      return best
-    }, null)
+      const allTimeBest = sessions.reduce((best, session) => {
+        if (!session.bestSet) return best
+        if (!best) return session.bestSet
+        if (session.bestSet.weight > best.weight) return session.bestSet
+        if (session.bestSet.weight === best.weight && session.bestSet.reps > best.reps)
+          return session.bestSet
+        return best
+      }, null)
 
-    const bestVolumeSession = sessions.reduce((best, session) => {
-      if (!best || session.totalVolume > best.totalVolume)
-        return { totalVolume: session.totalVolume, date: session.date }
-      return best
-    }, null)
+      const bestVolumeSession = sessions.reduce((best, session) => {
+        if (!best || session.totalVolume > best.totalVolume)
+          return { totalVolume: session.totalVolume, date: session.date }
+        return best
+      }, null)
 
-    return { sessions, allTimeBest, bestVolumeSession }
-  }, [exerciseName, userId])
+      setResult({ sessions, allTimeBest, bestVolumeSession })
+    }
+
+    load().catch(() => setResult(EMPTY))
+  }, [exerciseName])
 
   return {
     ...(result ?? EMPTY),

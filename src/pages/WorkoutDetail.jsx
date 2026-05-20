@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
+import { supabase } from '../lib/supabase'
 import useUnitStore, { fmtWeight } from '../store/unitStore'
 import { formatDuration } from './History'
 
@@ -36,7 +35,7 @@ function BackLink() {
 function ExerciseTable({ exercise, workoutId, unit }) {
   const validWeights = exercise.sets.map((s) => s.weight).filter((w) => w > 0)
   const bestWeight   = validWeights.length > 0 ? Math.max(...validWeights) : null
-  const perHand      = exercise.perHand === true
+  const perHand      = exercise.per_hand === true
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
@@ -95,28 +94,21 @@ function ExerciseTable({ exercise, workoutId, unit }) {
                 if (perHand) {
                   return (
                     <tr key={set.id} className={rowCls}>
-                      <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.setNumber}</td>
+                      <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.set_number}</td>
                       <td className="py-1.5 pr-3 text-right tabular-nums">
-                        {set.leftWeight > 0 ? fmtWeight(set.leftWeight, unit) : dash}
+                        {set.left_weight > 0 ? fmtWeight(set.left_weight, unit) : dash}
                       </td>
                       <td className="py-1.5 pr-4 text-right tabular-nums">
-                        {set.leftReps > 0 ? set.leftReps : dash}
+                        {set.left_reps > 0 ? set.left_reps : dash}
                       </td>
                       <td className="py-1.5 pr-3 text-right tabular-nums">
-                        {set.rightWeight > 0 ? fmtWeight(set.rightWeight, unit) : dash}
+                        {set.right_weight > 0 ? fmtWeight(set.right_weight, unit) : dash}
                       </td>
                       <td className="py-1.5 pr-4 text-right tabular-nums">
-                        {set.rightReps > 0 ? set.rightReps : dash}
+                        {set.right_reps > 0 ? set.right_reps : dash}
                       </td>
                       <td className="py-1.5 text-right">
-                        {isBest && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                              <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
-                            </svg>
-                            Best
-                          </span>
-                        )}
+                        {isBest && <BestBadge />}
                       </td>
                     </tr>
                   )
@@ -124,7 +116,7 @@ function ExerciseTable({ exercise, workoutId, unit }) {
 
                 return (
                   <tr key={set.id} className={rowCls}>
-                    <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.setNumber}</td>
+                    <td className="py-1.5 pr-4 font-mono text-slate-400 text-xs">{set.set_number}</td>
                     <td className="py-1.5 pr-4 text-right tabular-nums">
                       {set.weight > 0 ? fmtWeight(set.weight, unit) : dash}
                     </td>
@@ -132,14 +124,7 @@ function ExerciseTable({ exercise, workoutId, unit }) {
                       {set.reps > 0 ? set.reps : dash}
                     </td>
                     <td className="py-1.5 text-right">
-                      {isBest && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                            <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
-                          </svg>
-                          Best
-                        </span>
-                      )}
+                      {isBest && <BestBadge />}
                     </td>
                   </tr>
                 )
@@ -149,6 +134,17 @@ function ExerciseTable({ exercise, workoutId, unit }) {
         </div>
       )}
     </div>
+  )
+}
+
+function BestBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-0.5">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+        <path fillRule="evenodd" d="M8 1.75a.75.75 0 0 1 .692.462l1.41 3.393 3.664.293a.75.75 0 0 1 .428 1.317l-2.791 2.39.853 3.575a.75.75 0 0 1-1.12.814L8 11.944l-3.136 1.05a.75.75 0 0 1-1.12-.814l.853-3.576-2.79-2.39a.75.75 0 0 1 .427-1.316l3.663-.293 1.41-3.393A.75.75 0 0 1 8 1.75Z" clipRule="evenodd" />
+      </svg>
+      Best
+    </span>
   )
 }
 
@@ -188,31 +184,42 @@ export default function WorkoutDetail() {
   const workoutId = parseInt(id, 10)
   const { unit }  = useUnitStore()
 
-  const data = useLiveQuery(async () => {
-    const workout = await db.workouts.get(workoutId)
-    if (!workout) return null
+  const [data, setData] = useState(undefined)
 
-    const exercises = await db.exercises
-      .where('workoutId').equals(workoutId).sortBy('order')
+  useEffect(() => {
+    async function load() {
+      const { data: workout } = await supabase
+        .from('workouts')
+        .select('id, name, date, duration_minutes')
+        .eq('id', workoutId)
+        .single()
 
-    const exercisesWithSets = await Promise.all(
-      exercises.map(async (exercise) => ({
-        ...exercise,
-        sets: await db.sets.where('exerciseId').equals(exercise.id).sortBy('setNumber'),
-      }))
-    )
+      if (!workout) { setData(null); return }
 
-    return { workout, exercises: exercisesWithSets }
+      const { data: exercises } = await supabase
+        .from('exercises')
+        .select('id, name, order, per_hand')
+        .eq('workout_id', workoutId)
+        .order('order', { ascending: true })
+
+      const exercisesWithSets = await Promise.all(
+        (exercises ?? []).map(async (ex) => {
+          const { data: sets } = await supabase
+            .from('sets')
+            .select('id, set_number, weight, reps, left_weight, left_reps, right_weight, right_reps')
+            .eq('exercise_id', ex.id)
+            .order('set_number', { ascending: true })
+          return { ...ex, sets: sets ?? [] }
+        })
+      )
+
+      setData({ workout, exercises: exercisesWithSets })
+    }
+    load().catch(console.error)
   }, [workoutId])
 
   const handleDelete = async () => {
-    const exercises  = await db.exercises.where('workoutId').equals(workoutId).toArray()
-    const exerciseIds = exercises.map((e) => e.id)
-    if (exerciseIds.length > 0) {
-      await db.sets.where('exerciseId').anyOf(exerciseIds).delete()
-    }
-    await db.exercises.where('workoutId').equals(workoutId).delete()
-    await db.workouts.delete(workoutId)
+    await supabase.from('workouts').delete().eq('id', workoutId)
     navigate('/history')
   }
 
@@ -236,7 +243,7 @@ export default function WorkoutDetail() {
   }
 
   const { workout, exercises } = data
-  const duration = formatDuration(workout.durationMinutes)
+  const duration = formatDuration(workout.duration_minutes)
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">

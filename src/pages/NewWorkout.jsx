@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import useWorkoutStore from '../store/workoutStore'
 import useUnitStore from '../store/unitStore'
 import useAuthStore from '../store/authStore'
-import { db } from '../db/db'
+import { supabase } from '../lib/supabase'
 
 // ── ConfirmModal ──────────────────────────────────────────────────────────────
 
@@ -367,8 +367,8 @@ export default function NewWorkout() {
   const navigate     = useNavigate()
   const nameInputRef = useRef(null)
 
-  const { unit } = useUnitStore()
-  const userId = useAuthStore((s) => s.user?.id)
+  const { unit }  = useUnitStore()
+  const userId    = useAuthStore((s) => s.user?.id)
 
   const {
     workoutName, exercises, workoutStartTime,
@@ -427,49 +427,64 @@ export default function NewWorkout() {
       ? Math.round((Date.now() - workoutStartTime) / 60000)
       : null
 
-    const workoutId = await db.workouts.add({
-      name: workoutName.trim() || 'Untitled Workout',
-      date: new Date().toISOString(),
-      notes: '',
-      durationMinutes: durationMinutes > 0 ? durationMinutes : null,
-      userId,
-    })
-
     const toKg = (val) => unit === 'lbs'
       ? Math.round((parseFloat(val) / 2.2046) * 100) / 100
       : parseFloat(val)
 
-    for (const [exIdx, exercise] of exercises.entries()) {
-      const exerciseId = await db.exercises.add({
-        workoutId,
-        name: exercise.name.trim() || 'Unnamed Exercise',
-        order: exIdx,
-        perHand: exercise.perHand || false,
+    const { data: workout, error: workoutError } = await supabase
+      .from('workouts')
+      .insert({
+        user_id: userId,
+        name: workoutName.trim() || 'Untitled Workout',
+        date: new Date().toISOString(),
+        notes: '',
+        duration_minutes: durationMinutes > 0 ? durationMinutes : null,
       })
-      for (const [setIdx, s] of exercise.sets.entries()) {
+      .select('id')
+      .single()
+
+    if (workoutError) {
+      setValidationError(`Failed to save workout: ${workoutError.message}`)
+      return
+    }
+
+    for (const [exIdx, exercise] of exercises.entries()) {
+      const { data: ex } = await supabase
+        .from('exercises')
+        .insert({
+          workout_id: workout.id,
+          name: exercise.name.trim() || 'Unnamed Exercise',
+          order: exIdx,
+          per_hand: exercise.perHand || false,
+        })
+        .select('id')
+        .single()
+
+      const setsToInsert = exercise.sets.map((s, setIdx) => {
         if (exercise.perHand) {
           const leftKg  = toKg(s.leftWeight)  || 0
           const rightKg = toKg(s.rightWeight) || 0
-          await db.sets.add({
-            exerciseId,
-            setNumber: setIdx + 1,
+          return {
+            exercise_id: ex.id,
+            set_number: setIdx + 1,
             weight: Math.max(leftKg, rightKg),
             reps: parseInt(s.leftReps, 10) || 0,
-            leftWeight: leftKg,
-            leftReps:   parseInt(s.leftReps, 10)  || 0,
-            rightWeight: rightKg,
-            rightReps:  parseInt(s.rightReps, 10) || 0,
-          })
-        } else {
-          const kgValue = toKg(s.weight)
-          await db.sets.add({
-            exerciseId,
-            setNumber: setIdx + 1,
-            weight: kgValue || 0,
-            reps: parseInt(s.reps, 10) || 0,
-          })
+            left_weight: leftKg,
+            left_reps:   parseInt(s.leftReps, 10)  || 0,
+            right_weight: rightKg,
+            right_reps:  parseInt(s.rightReps, 10) || 0,
+          }
         }
-      }
+        const kgValue = toKg(s.weight)
+        return {
+          exercise_id: ex.id,
+          set_number: setIdx + 1,
+          weight: kgValue || 0,
+          reps: parseInt(s.reps, 10) || 0,
+        }
+      })
+
+      await supabase.from('sets').insert(setsToInsert)
     }
 
     resetWorkout()
