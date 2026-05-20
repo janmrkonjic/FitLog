@@ -1,13 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import useWorkoutStore from '../store/workoutStore'
-import useUnitStore from '../store/unitStore'
-import useAuthStore from '../store/authStore'
-import { supabase } from '../lib/supabase'
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import useWorkoutStore from "../store/workoutStore";
+import useUnitStore from "../store/unitStore";
+import useAuthStore from "../store/authStore";
+import { supabase } from "../lib/supabase";
+import { prescribedWeight } from "../lib/planMath";
 
 // ── ConfirmModal ──────────────────────────────────────────────────────────────
 
-function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger }) {
+function ConfirmModal({
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  danger,
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
@@ -25,8 +33,8 @@ function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, dange
             onClick={onConfirm}
             className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors ${
               danger
-                ? 'bg-red-600 hover:bg-red-500'
-                : 'bg-brand-500 hover:bg-brand-600'
+                ? "bg-red-600 hover:bg-red-500"
+                : "bg-brand-500 hover:bg-brand-600"
             }`}
           >
             {confirmLabel}
@@ -34,32 +42,56 @@ function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, dange
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function TrashIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-      <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 3.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="w-4 h-4"
+    >
+      <path
+        fillRule="evenodd"
+        d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 3.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+        clipRule="evenodd"
+      />
     </svg>
-  )
+  );
 }
 
 // ── SetRow ────────────────────────────────────────────────────────────────────
 
-function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
-                  onWeightRef, onTabFromLastReps, invalidIds, unit, perHand }) {
-  const weightInvalid      = invalidIds.has(set.tempId) && set.weight === ''
-  const repsInvalid        = invalidIds.has(set.tempId) && set.reps === ''
-  const leftWeightInvalid  = invalidIds.has(set.tempId) && set.leftWeight === ''
-  const leftRepsInvalid    = invalidIds.has(set.tempId) && set.leftReps === ''
-  const rightWeightInvalid = invalidIds.has(set.tempId) && set.rightWeight === ''
-  const rightRepsInvalid   = invalidIds.has(set.tempId) && set.rightReps === ''
+function SetRow({
+  exTempId,
+  set,
+  index,
+  onUpdate,
+  onRemove,
+  isOnly,
+  isLast,
+  onWeightRef,
+  onTabFromLastReps,
+  invalidIds,
+  unit,
+  perHand,
+}) {
+  const weightInvalid = invalidIds.has(set.tempId) && set.weight === "";
+  const repsInvalid = invalidIds.has(set.tempId) && set.reps === "";
+  const leftWeightInvalid = invalidIds.has(set.tempId) && set.leftWeight === "";
+  const leftRepsInvalid = invalidIds.has(set.tempId) && set.leftReps === "";
+  const rightWeightInvalid =
+    invalidIds.has(set.tempId) && set.rightWeight === "";
+  const rightRepsInvalid = invalidIds.has(set.tempId) && set.rightReps === "";
 
-  const inputBase = 'bg-slate-700 rounded px-2 py-1 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 text-right border'
-  const cls = (invalid) => `w-16 ${inputBase} ${invalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
-  const weightCls = `w-20 ${inputBase} ${weightInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
-  const repsCls   = `w-16 ${inputBase} ${repsInvalid   ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
+  const inputBase =
+    "bg-slate-700 rounded px-2 py-1 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 text-right border";
+  const cls = (invalid) =>
+    `w-16 ${inputBase} ${invalid ? "border-red-500 focus:ring-red-500" : "border-slate-600 focus:ring-brand-500 focus:border-brand-500"}`;
+  const weightCls = `w-20 ${inputBase} ${weightInvalid ? "border-red-500 focus:ring-red-500" : "border-slate-600 focus:ring-brand-500 focus:border-brand-500"}`;
+  const repsCls = `w-16 ${inputBase} ${repsInvalid ? "border-red-500 focus:ring-red-500" : "border-slate-600 focus:ring-brand-500 focus:border-brand-500"}`;
 
   if (perHand) {
     return (
@@ -78,7 +110,9 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
               step="0.5"
               placeholder="0"
               value={set.leftWeight}
-              onChange={(e) => onUpdate(exTempId, set.tempId, 'leftWeight', e.target.value)}
+              onChange={(e) =>
+                onUpdate(exTempId, set.tempId, "leftWeight", e.target.value)
+              }
               className={cls(leftWeightInvalid)}
             />
             <span className="text-xs text-slate-500">{unit}</span>
@@ -93,7 +127,9 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
               step="1"
               placeholder="0"
               value={set.leftReps}
-              onChange={(e) => onUpdate(exTempId, set.tempId, 'leftReps', e.target.value)}
+              onChange={(e) =>
+                onUpdate(exTempId, set.tempId, "leftReps", e.target.value)
+              }
               className={cls(leftRepsInvalid)}
             />
             <span className="text-xs text-slate-500">reps</span>
@@ -109,7 +145,9 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
               step="0.5"
               placeholder="0"
               value={set.rightWeight}
-              onChange={(e) => onUpdate(exTempId, set.tempId, 'rightWeight', e.target.value)}
+              onChange={(e) =>
+                onUpdate(exTempId, set.tempId, "rightWeight", e.target.value)
+              }
               className={cls(rightWeightInvalid)}
             />
             <span className="text-xs text-slate-500">{unit}</span>
@@ -124,11 +162,13 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
               step="1"
               placeholder="0"
               value={set.rightReps}
-              onChange={(e) => onUpdate(exTempId, set.tempId, 'rightReps', e.target.value)}
+              onChange={(e) =>
+                onUpdate(exTempId, set.tempId, "rightReps", e.target.value)
+              }
               onKeyDown={(e) => {
-                if (isLast && e.key === 'Tab' && !e.shiftKey) {
-                  e.preventDefault()
-                  onTabFromLastReps()
+                if (isLast && e.key === "Tab" && !e.shiftKey) {
+                  e.preventDefault();
+                  onTabFromLastReps();
                 }
               }}
               className={cls(rightRepsInvalid)}
@@ -148,7 +188,7 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
           </button>
         </td>
       </tr>
-    )
+    );
   }
 
   return (
@@ -166,7 +206,9 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
             step="0.5"
             placeholder="0"
             value={set.weight}
-            onChange={(e) => onUpdate(exTempId, set.tempId, 'weight', e.target.value)}
+            onChange={(e) =>
+              onUpdate(exTempId, set.tempId, "weight", e.target.value)
+            }
             className={weightCls}
           />
           <span className="text-xs text-slate-500">{unit}</span>
@@ -181,11 +223,13 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
             step="1"
             placeholder="0"
             value={set.reps}
-            onChange={(e) => onUpdate(exTempId, set.tempId, 'reps', e.target.value)}
+            onChange={(e) =>
+              onUpdate(exTempId, set.tempId, "reps", e.target.value)
+            }
             onKeyDown={(e) => {
-              if (isLast && e.key === 'Tab' && !e.shiftKey) {
-                e.preventDefault()
-                onTabFromLastReps()
+              if (isLast && e.key === "Tab" && !e.shiftKey) {
+                e.preventDefault();
+                onTabFromLastReps();
               }
             }}
             className={repsCls}
@@ -205,54 +249,67 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
         </button>
       </td>
     </tr>
-  )
+  );
 }
 
 // ── ExerciseBlock ─────────────────────────────────────────────────────────────
 
-function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdateSet,
-                         onRemove, onTogglePerHand, invalidIds, unit, nameSuggestions }) {
-  const nameInputRef  = useRef(null)
-  const weightRefsMap = useRef(new Map())
-  const prevSetsLen   = useRef(exercise.sets.length)
-  const didMount      = useRef(false)
+function ExerciseBlock({
+  exercise,
+  onUpdateName,
+  onAddSet,
+  onRemoveSet,
+  onUpdateSet,
+  onRemove,
+  onTogglePerHand,
+  invalidIds,
+  unit,
+  nameSuggestions,
+}) {
+  const nameInputRef = useRef(null);
+  const weightRefsMap = useRef(new Map());
+  const prevSetsLen = useRef(exercise.sets.length);
+  const didMount = useRef(false);
 
-  const [suggestOpen, setSuggestOpen] = useState(false)
-  const [highlightIdx, setHighlightIdx] = useState(-1)
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
 
-  const query = exercise.name.trim().toLowerCase()
-  const matches = query.length === 0
-    ? []
-    : nameSuggestions
-        .filter((n) => n.toLowerCase().includes(query) && n.toLowerCase() !== query)
-        .slice(0, 6)
+  const query = exercise.name.trim().toLowerCase();
+  const matches =
+    query.length === 0
+      ? []
+      : nameSuggestions
+          .filter(
+            (n) => n.toLowerCase().includes(query) && n.toLowerCase() !== query,
+          )
+          .slice(0, 6);
 
-  const showSuggestions = suggestOpen && matches.length > 0
+  const showSuggestions = suggestOpen && matches.length > 0;
 
   const pickSuggestion = (name) => {
-    onUpdateName(exercise.tempId, name)
-    setSuggestOpen(false)
-    setHighlightIdx(-1)
-  }
+    onUpdateName(exercise.tempId, name);
+    setSuggestOpen(false);
+    setHighlightIdx(-1);
+  };
 
   // Auto-focus name input when a new exercise block is first added
   useEffect(() => {
     if (!didMount.current) {
-      didMount.current = true
-      nameInputRef.current?.focus()
+      didMount.current = true;
+      nameInputRef.current?.focus();
     }
-  }, [])
+  }, []);
 
   // Auto-focus last weight input when a new set is appended
   useEffect(() => {
     if (exercise.sets.length > prevSetsLen.current) {
-      const lastSet = exercise.sets[exercise.sets.length - 1]
-      weightRefsMap.current.get(lastSet.tempId)?.focus()
+      const lastSet = exercise.sets[exercise.sets.length - 1];
+      weightRefsMap.current.get(lastSet.tempId)?.focus();
     }
-    prevSetsLen.current = exercise.sets.length
-  }, [exercise.sets.length]) // eslint-disable-line react-hooks/exhaustive-deps
+    prevSetsLen.current = exercise.sets.length;
+  }, [exercise.sets.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAddSet = () => onAddSet(exercise.tempId)
+  const handleAddSet = () => onAddSet(exercise.tempId);
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
@@ -265,27 +322,27 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
             placeholder="Exercise name (required for stats)"
             value={exercise.name}
             onChange={(e) => {
-              onUpdateName(exercise.tempId, e.target.value)
-              setSuggestOpen(true)
-              setHighlightIdx(-1)
+              onUpdateName(exercise.tempId, e.target.value);
+              setSuggestOpen(true);
+              setHighlightIdx(-1);
             }}
             onFocus={() => setSuggestOpen(true)}
             onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
             onKeyDown={(e) => {
-              if (!showSuggestions) return
-              if (e.key === 'ArrowDown') {
-                e.preventDefault()
-                setHighlightIdx((i) => (i + 1) % matches.length)
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault()
-                setHighlightIdx((i) => (i <= 0 ? matches.length - 1 : i - 1))
-              } else if (e.key === 'Enter' || e.key === 'Tab') {
+              if (!showSuggestions) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setHighlightIdx((i) => (i + 1) % matches.length);
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setHighlightIdx((i) => (i <= 0 ? matches.length - 1 : i - 1));
+              } else if (e.key === "Enter" || e.key === "Tab") {
                 if (highlightIdx >= 0) {
-                  e.preventDefault()
-                  pickSuggestion(matches[highlightIdx])
+                  e.preventDefault();
+                  pickSuggestion(matches[highlightIdx]);
                 }
-              } else if (e.key === 'Escape') {
-                setSuggestOpen(false)
+              } else if (e.key === "Escape") {
+                setSuggestOpen(false);
               }
             }}
             autoComplete="off"
@@ -298,14 +355,14 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
                   <button
                     type="button"
                     onMouseDown={(e) => {
-                      e.preventDefault()
-                      pickSuggestion(name)
+                      e.preventDefault();
+                      pickSuggestion(name);
                     }}
                     onMouseEnter={() => setHighlightIdx(i)}
                     className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                       i === highlightIdx
-                        ? 'bg-brand-500/20 text-brand-300'
-                        : 'text-slate-200 hover:bg-slate-800'
+                        ? "bg-brand-500/20 text-brand-300"
+                        : "text-slate-200 hover:bg-slate-800"
                     }`}
                   >
                     {name}
@@ -332,8 +389,8 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
           tabIndex={-1}
           className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
             exercise.perHand
-              ? 'border-brand-500 text-brand-400 bg-brand-500/10'
-              : 'border-slate-600 text-slate-500 hover:border-slate-500 hover:text-slate-400'
+              ? "border-brand-500 text-brand-400 bg-brand-500/10"
+              : "border-slate-600 text-slate-500 hover:border-slate-500 hover:text-slate-400"
           }`}
         >
           Per hand
@@ -347,10 +404,18 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
             {exercise.perHand ? (
               <tr className="text-xs text-slate-500 uppercase tracking-wide">
                 <th className="pb-2 pr-3 text-center font-medium w-8">#</th>
-                <th className="pb-2 pr-1 text-left font-medium text-brand-500/70">L Weight</th>
-                <th className="pb-2 pr-3 text-left font-medium text-brand-500/70">L Reps</th>
-                <th className="pb-2 pr-1 text-left font-medium text-slate-400">R Weight</th>
-                <th className="pb-2 pr-2 text-left font-medium text-slate-400">R Reps</th>
+                <th className="pb-2 pr-1 text-left font-medium text-brand-500/70">
+                  L Weight
+                </th>
+                <th className="pb-2 pr-3 text-left font-medium text-brand-500/70">
+                  L Reps
+                </th>
+                <th className="pb-2 pr-1 text-left font-medium text-slate-400">
+                  R Weight
+                </th>
+                <th className="pb-2 pr-2 text-left font-medium text-slate-400">
+                  R Reps
+                </th>
                 <th className="pb-2 w-8" />
               </tr>
             ) : (
@@ -374,8 +439,8 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
                 onUpdate={onUpdateSet}
                 onRemove={onRemoveSet}
                 onWeightRef={(el) => {
-                  if (el) weightRefsMap.current.set(set.tempId, el)
-                  else weightRefsMap.current.delete(set.tempId)
+                  if (el) weightRefsMap.current.set(set.tempId, el);
+                  else weightRefsMap.current.delete(set.tempId);
                 }}
                 onTabFromLastReps={handleAddSet}
                 invalidIds={invalidIds}
@@ -392,306 +457,486 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
         onClick={handleAddSet}
         className="mt-3 flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 font-medium transition-colors"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-4 h-4"
+        >
           <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
         </svg>
         Add Set
       </button>
     </div>
-  )
+  );
 }
 
 // ── Live timer display ────────────────────────────────────────────────────────
 
 function WorkoutTimer({ startTime }) {
-  const [elapsed, setElapsed] = useState(() => Date.now() - startTime)
+  const [elapsed, setElapsed] = useState(() => Date.now() - startTime);
 
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Date.now() - startTime), 1000)
-    return () => clearInterval(id)
-  }, [startTime])
+    const id = setInterval(() => setElapsed(Date.now() - startTime), 1000);
+    return () => clearInterval(id);
+  }, [startTime]);
 
-  const totalSec = Math.floor(elapsed / 1000)
-  const h   = Math.floor(totalSec / 3600)
-  const m   = Math.floor((totalSec % 3600) / 60)
-  const s   = totalSec % 60
-  const pad = (n) => String(n).padStart(2, '0')
-  const label = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+  const totalSec = Math.floor(elapsed / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  const label = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 
   return (
     <div className="flex items-center gap-1.5 text-slate-400 text-sm">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
-        <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="w-4 h-4 shrink-0"
+      >
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+          clipRule="evenodd"
+        />
       </svg>
       <span className="font-mono tabular-nums">{label}</span>
     </div>
-  )
+  );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function NewWorkout() {
-  const navigate     = useNavigate()
-  const nameInputRef = useRef(null)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const nameInputRef = useRef(null);
 
-  const { unit }  = useUnitStore()
-  const userId    = useAuthStore((s) => s.user?.id)
+  const { unit } = useUnitStore();
+  const userId = useAuthStore((s) => s.user?.id);
 
   const {
-    workoutName, exercises, workoutStartTime,
-    setWorkoutName, addExercise, removeExercise,
-    updateExerciseName, togglePerHand, addSet, removeSet, updateSet,
-    startWorkout, resetWorkout,
-  } = useWorkoutStore()
+    workoutName,
+    exercises,
+    workoutStartTime,
+    planSessionId,
+    planMeta,
+    setWorkoutName,
+    addExercise,
+    removeExercise,
+    updateExerciseName,
+    togglePerHand,
+    addSet,
+    removeSet,
+    updateSet,
+    startWorkout,
+    resetWorkout,
+    prefillFromPlan,
+  } = useWorkoutStore();
 
-  const started = workoutStartTime !== null
+  // Prefill from a plan session (plan_workout) if the user arrived via "Start session"
+  useEffect(() => {
+    const incomingId = location.state?.planSessionId;
+    const incomingMeta = location.state?.planMeta;
+    if (!incomingId || incomingId === planSessionId) return;
 
-  const [validationError, setValidationError] = useState(null)
-  const [invalidIds,      setInvalidIds]      = useState(new Set())
-  const [confirmModal,    setConfirmModal]    = useState(null) // { type: 'start' | 'finish' }
-  const [nameSuggestions, setNameSuggestions] = useState([])
+    let cancelled = false;
+    (async () => {
+      // plan_workouts IS the session in the v2 schema — query it directly
+      const { data: pw, error: pwErr } = await supabase
+        .from("plan_workouts")
+        .select(
+          `
+          id, name, week_number,
+          plan_exercises (
+            id, name, per_hand, sets_count,
+            baseline_weight_kg, baseline_reps, weekly_increment_kg, order
+          ),
+          plans ( name )
+        `,
+        )
+        .eq("id", incomingId)
+        .single();
+      if (cancelled || pwErr || !pw) return;
+
+      const exsSorted = (pw.plan_exercises ?? [])
+        .slice()
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      const toDisplay = (kg) =>
+        unit === "lbs" ? Math.round(kg * 2.2046 * 10) / 10 : kg;
+
+      const prefilled = exsSorted.map((ex) => {
+        const w = prescribedWeight(
+          ex.baseline_weight_kg,
+          ex.weekly_increment_kg,
+          pw.week_number,
+        );
+        const displayW = toDisplay(w);
+        return {
+          name: ex.name,
+          perHand: ex.per_hand,
+          sets: Array.from({ length: Math.max(1, ex.sets_count) }, () => ({
+            weight: displayW,
+            reps: ex.baseline_reps,
+          })),
+        };
+      });
+
+      const meta = incomingMeta
+        ? {
+            ...incomingMeta,
+            planName: incomingMeta.planName ?? pw.plans?.name ?? "",
+          }
+        : { planName: pw.plans?.name ?? "", weekNumber: pw.week_number };
+
+      prefillFromPlan(incomingId, meta, pw.name, prefilled);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.planSessionId]);
+
+  const started = workoutStartTime !== null;
+
+  const [validationError, setValidationError] = useState(null);
+  const [invalidIds, setInvalidIds] = useState(new Set());
+  const [confirmModal, setConfirmModal] = useState(null); // { type: 'start' | 'finish' }
+  const [nameSuggestions, setNameSuggestions] = useState([]);
 
   useEffect(() => {
-    nameInputRef.current?.focus()
-  }, [])
+    nameInputRef.current?.focus();
+  }, []);
 
   // Load distinct exercise names this user has used before, for autocomplete
   useEffect(() => {
-    if (!userId) return
-    let cancelled = false
-    ;(async () => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
       const [{ data, error }, { data: hidden }] = await Promise.all([
         supabase
-          .from('exercises')
-          .select('name, workouts!inner(user_id)')
-          .eq('workouts.user_id', userId),
+          .from("exercises")
+          .select("name, workouts!inner(user_id)")
+          .eq("workouts.user_id", userId),
         supabase
-          .from('hidden_exercise_names')
-          .select('name_lower')
-          .eq('user_id', userId),
-      ])
-      if (cancelled || error || !data) return
-      const hiddenSet = new Set((hidden ?? []).map((h) => h.name_lower))
-      const seen = new Map() // lowercase -> canonical display name
+          .from("hidden_exercise_names")
+          .select("name_lower")
+          .eq("user_id", userId),
+      ]);
+      if (cancelled || error || !data) return;
+      const hiddenSet = new Set((hidden ?? []).map((h) => h.name_lower));
+      const seen = new Map(); // lowercase -> canonical display name
       for (const row of data) {
-        const raw = (row.name || '').trim()
-        if (!raw) continue
-        const key = raw.toLowerCase()
-        if (hiddenSet.has(key)) continue
-        if (!seen.has(key)) seen.set(key, raw)
+        const raw = (row.name || "").trim();
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        if (hiddenSet.has(key)) continue;
+        if (!seen.has(key)) seen.set(key, raw);
       }
-      setNameSuggestions([...seen.values()].sort((a, b) => a.localeCompare(b)))
-    })()
-    return () => { cancelled = true }
-  }, [userId])
+      setNameSuggestions([...seen.values()].sort((a, b) => a.localeCompare(b)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
-    if (invalidIds.size > 0) setInvalidIds(new Set())
-    if (validationError)     setValidationError(null)
-  }, [exercises]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (invalidIds.size > 0) setInvalidIds(new Set());
+    if (validationError) setValidationError(null);
+  }, [exercises]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFinishRequest = () => {
     if (exercises.length === 0) {
-      setValidationError('Add at least one exercise before finishing.')
-      return
+      setValidationError("Add at least one exercise before finishing.");
+      return;
     }
 
-    const bad = new Set()
+    const bad = new Set();
     for (const ex of exercises) {
       for (const s of ex.sets) {
         if (ex.perHand) {
-          if (s.leftWeight === '' || s.leftReps === '' || s.rightWeight === '' || s.rightReps === '')
-            bad.add(s.tempId)
+          if (
+            s.leftWeight === "" ||
+            s.leftReps === "" ||
+            s.rightWeight === "" ||
+            s.rightReps === ""
+          )
+            bad.add(s.tempId);
         } else {
-          if (s.weight === '' || s.reps === '') bad.add(s.tempId)
+          if (s.weight === "" || s.reps === "") bad.add(s.tempId);
         }
       }
     }
     if (bad.size > 0) {
-      setInvalidIds(bad)
-      setValidationError('Please fill in all set values before finishing.')
-      return
+      setInvalidIds(bad);
+      setValidationError("Please fill in all set values before finishing.");
+      return;
     }
 
-    setConfirmModal({ type: 'finish' })
-  }
+    setConfirmModal({ type: "finish" });
+  };
 
   const handleFinish = async () => {
-    setConfirmModal(null)
-    setValidationError(null)
-    setInvalidIds(new Set())
+    setConfirmModal(null);
+    setValidationError(null);
+    setInvalidIds(new Set());
 
     const durationMinutes = workoutStartTime
       ? Math.round((Date.now() - workoutStartTime) / 60000)
-      : null
+      : null;
 
-    const toKg = (val) => unit === 'lbs'
-      ? Math.round((parseFloat(val) / 2.2046) * 100) / 100
-      : parseFloat(val)
+    const toKg = (val) =>
+      unit === "lbs"
+        ? Math.round((parseFloat(val) / 2.2046) * 100) / 100
+        : parseFloat(val);
 
     const { data: workout, error: workoutError } = await supabase
-      .from('workouts')
+      .from("workouts")
       .insert({
         user_id: userId,
-        name: workoutName.trim() || 'Untitled Workout',
+        name: workoutName.trim() || "Untitled Workout",
         date: new Date().toISOString(),
-        notes: '',
+        notes: "",
         duration_minutes: durationMinutes > 0 ? durationMinutes : null,
       })
-      .select('id')
-      .single()
+      .select("id")
+      .single();
 
     if (workoutError) {
-      setValidationError(`Failed to save workout: ${workoutError.message}`)
-      return
+      setValidationError(`Failed to save workout: ${workoutError.message}`);
+      return;
     }
 
     for (const [exIdx, exercise] of exercises.entries()) {
       const { data: ex } = await supabase
-        .from('exercises')
+        .from("exercises")
         .insert({
           workout_id: workout.id,
-          name: exercise.name.trim() || 'Unnamed Exercise',
+          name: exercise.name.trim() || "Unnamed Exercise",
           order: exIdx,
           per_hand: exercise.perHand || false,
         })
-        .select('id')
-        .single()
+        .select("id")
+        .single();
 
       const setsToInsert = exercise.sets.map((s, setIdx) => {
         if (exercise.perHand) {
-          const leftKg  = toKg(s.leftWeight)  || 0
-          const rightKg = toKg(s.rightWeight) || 0
+          const leftKg = toKg(s.leftWeight) || 0;
+          const rightKg = toKg(s.rightWeight) || 0;
           return {
             exercise_id: ex.id,
             set_number: setIdx + 1,
             weight: Math.max(leftKg, rightKg),
             reps: parseInt(s.leftReps, 10) || 0,
             left_weight: leftKg,
-            left_reps:   parseInt(s.leftReps, 10)  || 0,
+            left_reps: parseInt(s.leftReps, 10) || 0,
             right_weight: rightKg,
-            right_reps:  parseInt(s.rightReps, 10) || 0,
-          }
+            right_reps: parseInt(s.rightReps, 10) || 0,
+          };
         }
-        const kgValue = toKg(s.weight)
+        const kgValue = toKg(s.weight);
         return {
           exercise_id: ex.id,
           set_number: setIdx + 1,
           weight: kgValue || 0,
           reps: parseInt(s.reps, 10) || 0,
-        }
-      })
+        };
+      });
 
-      await supabase.from('sets').insert(setsToInsert)
+      await supabase.from("sets").insert(setsToInsert);
     }
 
-    resetWorkout()
-    navigate('/history')
-  }
+    // If this workout was started from a plan session, link it back.
+    const linkedPlanSessionId = planSessionId;
+    if (linkedPlanSessionId) {
+      const { data: updatedSession, error: updateErr } = await supabase
+        .from("plan_workouts")
+        .update({ completed_workout_id: workout.id, status: "completed" })
+        .eq("id", linkedPlanSessionId)
+        .select("plan_id")
+        .single();
+
+      if (!updateErr && updatedSession?.plan_id) {
+        const { count } = await supabase
+          .from("plan_workouts")
+          .select("id", { count: "exact", head: true })
+          .eq("plan_id", updatedSession.plan_id)
+          .neq("status", "completed");
+
+        if (count === 0) {
+          await supabase
+            .from("plans")
+            .update({ status: "completed" })
+            .eq("id", updatedSession.plan_id)
+            .neq("status", "cancelled");
+        }
+      }
+    }
+
+    resetWorkout();
+    navigate(linkedPlanSessionId ? "/plans" : "/history");
+  };
 
   return (
     <>
-    <div className="px-4 py-6 md:px-8 md:py-8">
-      <div className="max-w-2xl">
-
-        {/* Workout name + live timer */}
-        <div className="mb-8">
-          <input
-            ref={nameInputRef}
-            type="text"
-            placeholder="Workout name..."
-            value={workoutName}
-            onChange={(e) => setWorkoutName(e.target.value)}
-            className="w-full bg-transparent text-3xl font-bold text-slate-100 placeholder-slate-700 focus:outline-none border-b-2 border-transparent focus:border-brand-500 pb-1 transition-colors"
-          />
-          {started && (
-            <div className="mt-2">
-              <WorkoutTimer startTime={workoutStartTime} />
+      <div className="px-4 py-6 md:px-8 md:py-8">
+        <div className="max-w-2xl">
+          {/* Plan-session banner */}
+          {planSessionId && (
+            <div className="mb-4 flex items-center gap-3 bg-brand-500/10 border border-brand-500/30 rounded-xl px-4 py-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-5 h-5 text-brand-400 shrink-0"
+              >
+                <path d="M16.5 6a4.5 4.5 0 0 1 4.5 4.5v3a4.5 4.5 0 0 1-4.5 4.5h-9A4.5 4.5 0 0 1 3 13.5v-3A4.5 4.5 0 0 1 7.5 6h9Z" />
+              </svg>
+              <div className="flex-1 min-w-0 text-sm">
+                <p className="text-slate-200">
+                  Following plan
+                  {planMeta?.planName && (
+                    <>
+                      :{" "}
+                      <span className="text-brand-300 font-semibold">
+                        {planMeta.planName}
+                      </span>
+                    </>
+                  )}
+                </p>
+                {planMeta && (
+                  <p className="text-slate-500 text-xs">
+                    Week {planMeta.weekNumber} · Session{" "}
+                    {planMeta.sessionInWeek} of {planMeta.frequencyPerWeek}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => resetWorkout()}
+                className="text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors shrink-0"
+              >
+                Clear
+              </button>
             </div>
           )}
-        </div>
 
-        {/* Exercise list */}
-        {exercises.length > 0 && (
-          <div className="space-y-4 mb-6">
-            {exercises.map((exercise) => (
-              <ExerciseBlock
-                key={exercise.tempId}
-                exercise={exercise}
-                onUpdateName={updateExerciseName}
-                onAddSet={addSet}
-                onRemoveSet={removeSet}
-                onUpdateSet={updateSet}
-                onRemove={removeExercise}
-                onTogglePerHand={togglePerHand}
-                invalidIds={invalidIds}
-                unit={unit}
-                nameSuggestions={nameSuggestions}
-              />
-            ))}
+          {/* Workout name + live timer */}
+          <div className="mb-8">
+            <input
+              ref={nameInputRef}
+              type="text"
+              placeholder="Workout name..."
+              value={workoutName}
+              onChange={(e) => setWorkoutName(e.target.value)}
+              className="w-full bg-transparent text-3xl font-bold text-slate-100 placeholder-slate-700 focus:outline-none border-b-2 border-transparent focus:border-brand-500 pb-1 transition-colors"
+            />
+            {started && (
+              <div className="mt-2">
+                <WorkoutTimer startTime={workoutStartTime} />
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Add exercise */}
-        <button
-          onClick={addExercise}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-400 hover:border-brand-500 hover:text-brand-400 font-medium text-sm transition-colors mb-8"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-          </svg>
-          Add Exercise
-        </button>
+          {/* Exercise list */}
+          {exercises.length > 0 && (
+            <div className="space-y-4 mb-6">
+              {exercises.map((exercise) => (
+                <ExerciseBlock
+                  key={exercise.tempId}
+                  exercise={exercise}
+                  onUpdateName={updateExerciseName}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onUpdateSet={updateSet}
+                  onRemove={removeExercise}
+                  onTogglePerHand={togglePerHand}
+                  invalidIds={invalidIds}
+                  unit={unit}
+                  nameSuggestions={nameSuggestions}
+                />
+              ))}
+            </div>
+          )}
 
-        {/* Validation error */}
-        {validationError && (
-          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-red-400 mt-0.5 shrink-0">
-              <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+          {/* Add exercise */}
+          <button
+            onClick={addExercise}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-400 hover:border-brand-500 hover:text-brand-400 font-medium text-sm transition-colors mb-8"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-4 h-4"
+            >
+              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
             </svg>
-            <p className="text-red-400 text-sm">{validationError}</p>
-          </div>
-        )}
-
-        {/* Start / Finish */}
-        {started ? (
-          <button
-            onClick={handleFinishRequest}
-            className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
-          >
-            Finish Workout
+            Add Exercise
           </button>
-        ) : (
-          <button
-            onClick={() => setConfirmModal({ type: 'start' })}
-            className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
-          >
-            Start Workout
-          </button>
-        )}
 
+          {/* Validation error */}
+          {validationError && (
+            <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-4 h-4 text-red-400 mt-0.5 shrink-0"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p className="text-red-400 text-sm">{validationError}</p>
+            </div>
+          )}
+
+          {/* Start / Finish */}
+          {started ? (
+            <button
+              onClick={handleFinishRequest}
+              className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
+            >
+              Finish Workout
+            </button>
+          ) : (
+            <button
+              onClick={() => setConfirmModal({ type: "start" })}
+              className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
+            >
+              Start Workout
+            </button>
+          )}
+        </div>
       </div>
-    </div>
 
-    {confirmModal?.type === 'start' && (
-      <ConfirmModal
-        title="Start Workout?"
-        message="This will start the timer and begin tracking your session."
-        confirmLabel="Start"
-        onConfirm={() => { setConfirmModal(null); startWorkout() }}
-        onCancel={() => setConfirmModal(null)}
-      />
-    )}
-    {confirmModal?.type === 'finish' && (
-      <ConfirmModal
-        title="Finish Workout?"
-        message="Your workout will be saved and you'll be taken to your history."
-        confirmLabel="Finish"
-        danger
-        onConfirm={handleFinish}
-        onCancel={() => setConfirmModal(null)}
-      />
-    )}
+      {confirmModal?.type === "start" && (
+        <ConfirmModal
+          title="Start Workout?"
+          message="This will start the timer and begin tracking your session."
+          confirmLabel="Start"
+          onConfirm={() => {
+            setConfirmModal(null);
+            startWorkout();
+          }}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
+      {confirmModal?.type === "finish" && (
+        <ConfirmModal
+          title="Finish Workout?"
+          message="Your workout will be saved and you'll be taken to your history."
+          confirmLabel="Finish"
+          danger
+          onConfirm={handleFinish}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </>
-  )
+  );
 }

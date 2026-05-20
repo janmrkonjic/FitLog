@@ -1,35 +1,40 @@
-import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Sidebar from './components/ui/Sidebar'
-import BottomNav from './components/ui/BottomNav'
-import Home from './pages/Home'
-import NewWorkout from './pages/NewWorkout'
-import WorkoutDetail from './pages/WorkoutDetail'
-import ExerciseDetail from './pages/ExerciseDetail'
-import History from './pages/History'
-import Progress from './pages/Progress'
-import Profile from './pages/Profile'
-import Login from './pages/Login'
-import useAuthStore from './store/authStore'
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Sidebar from "./components/ui/Sidebar";
+import BottomNav from "./components/ui/BottomNav";
+import Home from "./pages/Home";
+import NewWorkout from "./pages/NewWorkout";
+import WorkoutDetail from "./pages/WorkoutDetail";
+import ExerciseDetail from "./pages/ExerciseDetail";
+import History from "./pages/History";
+import Progress from "./pages/Progress";
+import Profile from "./pages/Profile";
+import Plans from "./pages/Plans";
+import PlanNew from "./pages/PlanNew";
+import PlanDetail from "./pages/PlanDetail";
+import Login from "./pages/Login";
+import useAuthStore from "./store/authStore";
 
 function AuthGuard({ children }) {
-  const user    = useAuthStore((s) => s.user)
-  const loading = useAuthStore((s) => s.loading)
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.loading);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
       </div>
-    )
+    );
   }
-  if (!user) return <Navigate to="/login" replace />
-  return children
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
 }
 
 export default function App() {
-  const init = useAuthStore((s) => s.init)
-  useEffect(() => { init() }, [init])
+  const init = useAuthStore((s) => s.init);
+  useEffect(() => {
+    init();
+  }, [init]);
 
   return (
     <BrowserRouter>
@@ -38,15 +43,15 @@ export default function App() {
         <Route path="/*" element={<AppShell />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
 function LoginPage() {
-  const user    = useAuthStore((s) => s.user)
-  const loading = useAuthStore((s) => s.loading)
-  if (loading) return null
-  if (user) return <Navigate to="/" replace />
-  return <Login />
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.loading);
+  if (loading) return null;
+  if (user) return <Navigate to="/" replace />;
+  return <Login />;
 }
 
 function AppShell() {
@@ -63,6 +68,9 @@ function AppShell() {
               <Route path="/exercise/:name" element={<ExerciseDetail />} />
               <Route path="/history" element={<History />} />
               <Route path="/progress" element={<Progress />} />
+              <Route path="/plans" element={<Plans />} />
+              <Route path="/plans/new" element={<PlanNew />} />
+              <Route path="/plans/:id" element={<PlanDetail />} />
               <Route path="/profile" element={<Profile />} />
             </Routes>
           </main>
@@ -70,5 +78,5 @@ function AppShell() {
         <BottomNav />
       </div>
     </AuthGuard>
-  )
+  );
 }
