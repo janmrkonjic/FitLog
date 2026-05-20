@@ -211,11 +211,29 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
 // ── ExerciseBlock ─────────────────────────────────────────────────────────────
 
 function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdateSet,
-                         onRemove, onTogglePerHand, invalidIds, unit }) {
+                         onRemove, onTogglePerHand, invalidIds, unit, nameSuggestions }) {
   const nameInputRef  = useRef(null)
   const weightRefsMap = useRef(new Map())
   const prevSetsLen   = useRef(exercise.sets.length)
   const didMount      = useRef(false)
+
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(-1)
+
+  const query = exercise.name.trim().toLowerCase()
+  const matches = query.length === 0
+    ? []
+    : nameSuggestions
+        .filter((n) => n.toLowerCase().includes(query) && n.toLowerCase() !== query)
+        .slice(0, 6)
+
+  const showSuggestions = suggestOpen && matches.length > 0
+
+  const pickSuggestion = (name) => {
+    onUpdateName(exercise.tempId, name)
+    setSuggestOpen(false)
+    setHighlightIdx(-1)
+  }
 
   // Auto-focus name input when a new exercise block is first added
   useEffect(() => {
@@ -240,14 +258,63 @@ function ExerciseBlock({ exercise, onUpdateName, onAddSet, onRemoveSet, onUpdate
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
       {/* Exercise header */}
       <div className="flex items-start gap-2 mb-3">
-        <input
-          ref={nameInputRef}
-          type="text"
-          placeholder="Exercise name (required for stats)"
-          value={exercise.name}
-          onChange={(e) => onUpdateName(exercise.tempId, e.target.value)}
-          className="flex-1 bg-transparent text-slate-100 font-semibold text-base placeholder-slate-500 focus:outline-none border-b border-transparent focus:border-brand-500 pb-0.5 transition-colors"
-        />
+        <div className="flex-1 relative">
+          <input
+            ref={nameInputRef}
+            type="text"
+            placeholder="Exercise name (required for stats)"
+            value={exercise.name}
+            onChange={(e) => {
+              onUpdateName(exercise.tempId, e.target.value)
+              setSuggestOpen(true)
+              setHighlightIdx(-1)
+            }}
+            onFocus={() => setSuggestOpen(true)}
+            onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
+            onKeyDown={(e) => {
+              if (!showSuggestions) return
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setHighlightIdx((i) => (i + 1) % matches.length)
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setHighlightIdx((i) => (i <= 0 ? matches.length - 1 : i - 1))
+              } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (highlightIdx >= 0) {
+                  e.preventDefault()
+                  pickSuggestion(matches[highlightIdx])
+                }
+              } else if (e.key === 'Escape') {
+                setSuggestOpen(false)
+              }
+            }}
+            autoComplete="off"
+            className="w-full bg-transparent text-slate-100 font-semibold text-base placeholder-slate-500 focus:outline-none border-b border-transparent focus:border-brand-500 pb-0.5 transition-colors"
+          />
+          {showSuggestions && (
+            <ul className="absolute left-0 right-0 top-full mt-1 z-20 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+              {matches.map((name, i) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      pickSuggestion(name)
+                    }}
+                    onMouseEnter={() => setHighlightIdx(i)}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      i === highlightIdx
+                        ? 'bg-brand-500/20 text-brand-300'
+                        : 'text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <button
           onClick={() => onRemove(exercise.tempId)}
           tabIndex={-1}
@@ -382,10 +449,41 @@ export default function NewWorkout() {
   const [validationError, setValidationError] = useState(null)
   const [invalidIds,      setInvalidIds]      = useState(new Set())
   const [confirmModal,    setConfirmModal]    = useState(null) // { type: 'start' | 'finish' }
+  const [nameSuggestions, setNameSuggestions] = useState([])
 
   useEffect(() => {
     nameInputRef.current?.focus()
   }, [])
+
+  // Load distinct exercise names this user has used before, for autocomplete
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    ;(async () => {
+      const [{ data, error }, { data: hidden }] = await Promise.all([
+        supabase
+          .from('exercises')
+          .select('name, workouts!inner(user_id)')
+          .eq('workouts.user_id', userId),
+        supabase
+          .from('hidden_exercise_names')
+          .select('name_lower')
+          .eq('user_id', userId),
+      ])
+      if (cancelled || error || !data) return
+      const hiddenSet = new Set((hidden ?? []).map((h) => h.name_lower))
+      const seen = new Map() // lowercase -> canonical display name
+      for (const row of data) {
+        const raw = (row.name || '').trim()
+        if (!raw) continue
+        const key = raw.toLowerCase()
+        if (hiddenSet.has(key)) continue
+        if (!seen.has(key)) seen.set(key, raw)
+      }
+      setNameSuggestions([...seen.values()].sort((a, b) => a.localeCompare(b)))
+    })()
+    return () => { cancelled = true }
+  }, [userId])
 
   useEffect(() => {
     if (invalidIds.size > 0) setInvalidIds(new Set())
@@ -528,6 +626,7 @@ export default function NewWorkout() {
                 onTogglePerHand={togglePerHand}
                 invalidIds={invalidIds}
                 unit={unit}
+                nameSuggestions={nameSuggestions}
               />
             ))}
           </div>

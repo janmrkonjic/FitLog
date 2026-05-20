@@ -33,9 +33,27 @@ function BackLink() {
 }
 
 function ExerciseTable({ exercise, workoutId, unit }) {
-  const validWeights = exercise.sets.map((s) => s.weight).filter((w) => w > 0)
-  const bestWeight   = validWeights.length > 0 ? Math.max(...validWeights) : null
-  const perHand      = exercise.per_hand === true
+  const perHand = exercise.per_hand === true
+
+  // Pick a single best set: highest weight, then highest reps,
+  // then latest set_number (later set wins because the lifter is more fatigued).
+  const bestSetId = (() => {
+    let best = null
+    for (const s of exercise.sets) {
+      const w = perHand ? Math.max(s.left_weight || 0, s.right_weight || 0) : (s.weight || 0)
+      const r = perHand ? Math.max(s.left_reps   || 0, s.right_reps   || 0) : (s.reps   || 0)
+      if (w <= 0 || r <= 0) continue
+      if (
+        !best ||
+        w > best.w ||
+        (w === best.w && r > best.r) ||
+        (w === best.w && r === best.r && s.set_number > best.n)
+      ) {
+        best = { id: s.id, w, r, n: s.set_number }
+      }
+    }
+    return best?.id ?? null
+  })()
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
@@ -87,7 +105,7 @@ function ExerciseTable({ exercise, workoutId, unit }) {
             </thead>
             <tbody>
               {exercise.sets.map((set) => {
-                const isBest = bestWeight !== null && set.weight === bestWeight
+                const isBest = set.id === bestSetId
                 const rowCls = isBest ? 'text-brand-400' : 'text-slate-300'
                 const dash = <span className="text-slate-600">—</span>
 
