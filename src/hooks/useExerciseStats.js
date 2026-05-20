@@ -1,15 +1,26 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import useAuthStore from '../store/authStore'
 
 const EMPTY = { sessions: [], allTimeBest: null, bestVolumeSession: null }
 
 export function useExerciseStats(exerciseName) {
+  const userId = useAuthStore((s) => s.user?.id)
+
   const result = useLiveQuery(async () => {
     if (!exerciseName) return EMPTY
 
     const needle = exerciseName.toLowerCase().trim()
+
+    // Only include exercises from workouts belonging to the current user
+    const userWorkoutIds = new Set(
+      (await db.workouts.where('userId').equals(userId).primaryKeys())
+    )
+
     const exercises = (await db.exercises.toArray()).filter(
-      (e) => (e.name ?? '').toLowerCase().trim() === needle
+      (e) =>
+        (e.name ?? '').toLowerCase().trim() === needle &&
+        userWorkoutIds.has(e.workoutId)
     )
 
     if (exercises.length === 0) return EMPTY
@@ -25,11 +36,13 @@ export function useExerciseStats(exerciseName) {
             .equals(exercise.id)
             .sortBy('setNumber')
 
-          // Best set = highest weight; tie-break by most reps
+          // Best set: highest weight wins; same weight → more reps wins;
+          // same weight+reps → later set wins (harder when fatigued)
           const bestSet = sets.reduce((best, s) => {
             if (!best) return s
             if (s.weight > best.weight) return s
             if (s.weight === best.weight && s.reps > best.reps) return s
+            if (s.weight === best.weight && s.reps === best.reps) return s
             return best
           }, null)
 
@@ -71,7 +84,7 @@ export function useExerciseStats(exerciseName) {
     }, null)
 
     return { sessions, allTimeBest, bestVolumeSession }
-  }, [exerciseName])
+  }, [exerciseName, userId])
 
   return {
     ...(result ?? EMPTY),

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { WorkoutCard, formatDuration } from './History'
+import useAuthStore from '../store/authStore'
 
 // ── Install banner ────────────────────────────────────────────────────────────
 
@@ -98,15 +99,19 @@ function WelcomeState() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Home() {
+  const userId = useAuthStore((s) => s.user?.id)
+
   const recentWorkouts = useLiveQuery(async () => {
-    const all = await db.workouts.orderBy('date').reverse().limit(3).toArray()
+    const all = (await db.workouts.where('userId').equals(userId).toArray())
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 3)
     return Promise.all(
       all.map(async (w) => ({
         ...w,
         exerciseCount: await db.exercises.where('workoutId').equals(w.id).count(),
       }))
     )
-  })
+  }, [userId])
 
   const hasWorkouts = recentWorkouts && recentWorkouts.length > 0
 

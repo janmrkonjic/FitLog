@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import useAuthStore from '../../store/authStore'
 
 const tabs = [
   {
@@ -33,6 +34,8 @@ const tabs = [
 ]
 
 export default function BottomNav() {
+  const user = useAuthStore((s) => s.user)
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-40 pb-[env(safe-area-inset-bottom)]">
       <ul className="flex">
@@ -54,6 +57,33 @@ export default function BottomNav() {
             </NavLink>
           </li>
         ))}
+
+        {/* Profile tab */}
+        <li className="flex-1">
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+                isActive ? 'text-brand-500' : 'text-slate-400 hover:text-slate-200'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${
+                  isActive
+                    ? 'bg-brand-500/30 border-brand-500'
+                    : 'bg-brand-500/20 border-brand-500/30'
+                }`}>
+                  <span className={`text-xs font-bold uppercase leading-none ${isActive ? 'text-brand-400' : 'text-brand-400'}`}>
+                    {user?.username?.[0] ?? '?'}
+                  </span>
+                </div>
+                Profile
+              </>
+            )}
+          </NavLink>
+        </li>
       </ul>
     </nav>
   )

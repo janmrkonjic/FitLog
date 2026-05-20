@@ -2,7 +2,40 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useWorkoutStore from '../store/workoutStore'
 import useUnitStore from '../store/unitStore'
+import useAuthStore from '../store/authStore'
 import { db } from '../db/db'
+
+// ── ConfirmModal ──────────────────────────────────────────────────────────────
+
+function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <h2 className="text-slate-100 font-semibold text-lg mb-2">{title}</h2>
+        <p className="text-slate-400 text-sm mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-slate-100 text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors ${
+              danger
+                ? 'bg-red-600 hover:bg-red-500'
+                : 'bg-brand-500 hover:bg-brand-600'
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function TrashIcon() {
   return (
@@ -19,7 +52,7 @@ function SetRow({ exTempId, set, index, onUpdate, onRemove, isOnly, isLast,
   const weightInvalid = invalidIds.has(set.tempId) && set.weight === ''
   const repsInvalid   = invalidIds.has(set.tempId) && set.reps === ''
 
-  const inputBase = 'bg-slate-700 rounded px-2 py-1 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 text-right border'
+  const inputBase = 'bg-slate-700 rounded px-2 py-1 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 text-right border'
   const weightCls = `w-20 ${inputBase} ${weightInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
   const repsCls   = `w-16 ${inputBase} ${repsInvalid   ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-brand-500 focus:border-brand-500'}`
 
@@ -213,6 +246,7 @@ export default function NewWorkout() {
   const nameInputRef = useRef(null)
 
   const { unit } = useUnitStore()
+  const userId = useAuthStore((s) => s.user?.id)
 
   const {
     workoutName, exercises, workoutStartTime,
@@ -225,6 +259,7 @@ export default function NewWorkout() {
 
   const [validationError, setValidationError] = useState(null)
   const [invalidIds,      setInvalidIds]      = useState(new Set())
+  const [confirmModal,    setConfirmModal]    = useState(null) // { type: 'start' | 'finish' }
 
   useEffect(() => {
     nameInputRef.current?.focus()
@@ -235,7 +270,7 @@ export default function NewWorkout() {
     if (validationError)     setValidationError(null)
   }, [exercises]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleFinish = async () => {
+  const handleFinishRequest = () => {
     if (exercises.length === 0) {
       setValidationError('Add at least one exercise before finishing.')
       return
@@ -253,6 +288,11 @@ export default function NewWorkout() {
       return
     }
 
+    setConfirmModal({ type: 'finish' })
+  }
+
+  const handleFinish = async () => {
+    setConfirmModal(null)
     setValidationError(null)
     setInvalidIds(new Set())
 
@@ -265,6 +305,7 @@ export default function NewWorkout() {
       date: new Date().toISOString(),
       notes: '',
       durationMinutes: durationMinutes > 0 ? durationMinutes : null,
+      userId,
     })
 
     for (const [exIdx, exercise] of exercises.entries()) {
@@ -291,6 +332,7 @@ export default function NewWorkout() {
   }
 
   return (
+    <>
     <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-2xl">
 
@@ -354,14 +396,14 @@ export default function NewWorkout() {
         {/* Start / Finish */}
         {started ? (
           <button
-            onClick={handleFinish}
+            onClick={handleFinishRequest}
             className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
           >
             Finish Workout
           </button>
         ) : (
           <button
-            onClick={startWorkout}
+            onClick={() => setConfirmModal({ type: 'start' })}
             className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base transition-colors"
           >
             Start Workout
@@ -370,5 +412,26 @@ export default function NewWorkout() {
 
       </div>
     </div>
+
+    {confirmModal?.type === 'start' && (
+      <ConfirmModal
+        title="Start Workout?"
+        message="This will start the timer and begin tracking your session."
+        confirmLabel="Start"
+        onConfirm={() => { setConfirmModal(null); startWorkout() }}
+        onCancel={() => setConfirmModal(null)}
+      />
+    )}
+    {confirmModal?.type === 'finish' && (
+      <ConfirmModal
+        title="Finish Workout?"
+        message="Your workout will be saved and you'll be taken to your history."
+        confirmLabel="Finish"
+        danger
+        onConfirm={handleFinish}
+        onCancel={() => setConfirmModal(null)}
+      />
+    )}
+    </>
   )
 }

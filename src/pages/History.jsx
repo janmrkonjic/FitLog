@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import useAuthStore from '../store/authStore'
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-US', {
@@ -86,16 +87,18 @@ export function WorkoutCard({ workout }) {
 
 export default function History() {
   const [searchQuery, setSearchQuery] = useState('')
+  const userId = useAuthStore((s) => s.user?.id)
 
   const workouts = useLiveQuery(async () => {
-    const all = await db.workouts.orderBy('date').reverse().toArray()
+    const all = (await db.workouts.where('userId').equals(userId).toArray())
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
     return Promise.all(
       all.map(async (w) => ({
         ...w,
         exerciseCount: await db.exercises.where('workoutId').equals(w.id).count(),
       }))
     )
-  })
+  }, [userId])
 
   const q = searchQuery.trim().toLowerCase()
   const filtered = workouts?.filter((w) => !q || w.name.toLowerCase().includes(q)) ?? []
