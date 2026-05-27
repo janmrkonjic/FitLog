@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useWorkoutStore from "../store/workoutStore";
 import useUnitStore from "../store/unitStore";
 import useAuthStore from "../store/authStore";
 import { supabase } from "../lib/supabase";
-import { prescribedWeight } from "../lib/planMath";
 
 // ── ConfirmModal ──────────────────────────────────────────────────────────────
 
@@ -511,7 +510,6 @@ function WorkoutTimer({ startTime }) {
 
 export default function NewWorkout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const nameInputRef = useRef(null);
 
   const { unit } = useUnitStore();
@@ -521,8 +519,6 @@ export default function NewWorkout() {
     workoutName,
     exercises,
     workoutStartTime,
-    planSessionId,
-    planMeta,
     setWorkoutName,
     addExercise,
     removeExercise,
@@ -533,72 +529,7 @@ export default function NewWorkout() {
     updateSet,
     startWorkout,
     resetWorkout,
-    prefillFromPlan,
   } = useWorkoutStore();
-
-  // Prefill from a plan session (plan_workout) if the user arrived via "Start session"
-  useEffect(() => {
-    const incomingId = location.state?.planSessionId;
-    const incomingMeta = location.state?.planMeta;
-    if (!incomingId || incomingId === planSessionId) return;
-
-    let cancelled = false;
-    (async () => {
-      // plan_workouts IS the session in the v2 schema — query it directly
-      const { data: pw, error: pwErr } = await supabase
-        .from("plan_workouts")
-        .select(
-          `
-          id, name, week_number,
-          plan_exercises (
-            id, name, per_hand, sets_count,
-            baseline_weight_kg, baseline_reps, weekly_increment_kg, order
-          ),
-          plans ( name )
-        `,
-        )
-        .eq("id", incomingId)
-        .single();
-      if (cancelled || pwErr || !pw) return;
-
-      const exsSorted = (pw.plan_exercises ?? [])
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-      const toDisplay = (kg) =>
-        unit === "lbs" ? Math.round(kg * 2.2046 * 10) / 10 : kg;
-
-      const prefilled = exsSorted.map((ex) => {
-        const w = prescribedWeight(
-          ex.baseline_weight_kg,
-          ex.weekly_increment_kg,
-          pw.week_number,
-        );
-        const displayW = toDisplay(w);
-        return {
-          name: ex.name,
-          perHand: ex.per_hand,
-          sets: Array.from({ length: Math.max(1, ex.sets_count) }, () => ({
-            weight: displayW,
-            reps: ex.baseline_reps,
-          })),
-        };
-      });
-
-      const meta = incomingMeta
-        ? {
-            ...incomingMeta,
-            planName: incomingMeta.planName ?? pw.plans?.name ?? "",
-          }
-        : { planName: pw.plans?.name ?? "", weekNumber: pw.week_number };
-
-      prefillFromPlan(incomingId, meta, pw.name, prefilled);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state?.planSessionId]);
 
   const started = workoutStartTime !== null;
 
@@ -749,80 +680,14 @@ export default function NewWorkout() {
       await supabase.from("sets").insert(setsToInsert);
     }
 
-    // If this workout was started from a plan session, link it back.
-    const linkedPlanSessionId = planSessionId;
-    if (linkedPlanSessionId) {
-      const { data: updatedSession, error: updateErr } = await supabase
-        .from("plan_workouts")
-        .update({ completed_workout_id: workout.id, status: "completed" })
-        .eq("id", linkedPlanSessionId)
-        .select("plan_id")
-        .single();
-
-      if (!updateErr && updatedSession?.plan_id) {
-        const { count } = await supabase
-          .from("plan_workouts")
-          .select("id", { count: "exact", head: true })
-          .eq("plan_id", updatedSession.plan_id)
-          .neq("status", "completed");
-
-        if (count === 0) {
-          await supabase
-            .from("plans")
-            .update({ status: "completed" })
-            .eq("id", updatedSession.plan_id)
-            .neq("status", "cancelled");
-        }
-      }
-    }
-
     resetWorkout();
-    navigate(linkedPlanSessionId ? "/plans" : "/history");
+    navigate("/history");
   };
 
   return (
     <>
       <div className="px-4 py-6 md:px-8 md:py-8">
         <div className="max-w-2xl">
-          {/* Plan-session banner */}
-          {planSessionId && (
-            <div className="mb-4 flex items-center gap-3 bg-brand-500/10 border border-brand-500/30 rounded-xl px-4 py-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="w-5 h-5 text-brand-400 shrink-0"
-              >
-                <path d="M16.5 6a4.5 4.5 0 0 1 4.5 4.5v3a4.5 4.5 0 0 1-4.5 4.5h-9A4.5 4.5 0 0 1 3 13.5v-3A4.5 4.5 0 0 1 7.5 6h9Z" />
-              </svg>
-              <div className="flex-1 min-w-0 text-sm">
-                <p className="text-slate-200">
-                  Following plan
-                  {planMeta?.planName && (
-                    <>
-                      :{" "}
-                      <span className="text-brand-300 font-semibold">
-                        {planMeta.planName}
-                      </span>
-                    </>
-                  )}
-                </p>
-                {planMeta && (
-                  <p className="text-slate-500 text-xs">
-                    Week {planMeta.weekNumber} · Session{" "}
-                    {planMeta.sessionInWeek} of {planMeta.frequencyPerWeek}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => resetWorkout()}
-                className="text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors shrink-0"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
           {/* Workout name + live timer */}
           <div className="mb-8">
             <input

@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
+import useWorkoutStore from '../../store/workoutStore'
 
-const navItems = [
+const staticNavItems = [
   {
     to: '/',
     label: 'Home',
@@ -14,16 +15,6 @@ const navItems = [
     ),
   },
   {
-    to: '/new',
-    label: 'New Workout',
-    end: false,
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 shrink-0">
-        <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
     to: '/history',
     label: 'History',
     end: false,
@@ -31,17 +22,6 @@ const navItems = [
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 shrink-0">
         <path fillRule="evenodd" d="M7.502 6h7.128A3.375 3.375 0 0 1 18 9.375v9.375a3 3 0 0 0 3-3V6.108c0-1.505-1.125-2.811-2.664-2.94a48.972 48.972 0 0 0-.673-.05A3 3 0 0 0 15 1.5h-1.5a3 3 0 0 0-2.663 1.618c-.225.015-.45.032-.673.05C8.662 3.295 7.554 4.542 7.502 6ZM13.5 3A1.5 1.5 0 0 0 12 4.5h4.5A1.5 1.5 0 0 0 15 3h-1.5Z" clipRule="evenodd" />
         <path fillRule="evenodd" d="M3 9.375C3 8.339 3.84 7.5 4.875 7.5h9.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V9.375ZM6 12a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75V12Zm2.25 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75ZM6 15a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75V15Zm2.25 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75ZM6 18a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75V18Zm2.25 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    to: '/plans',
-    label: 'Plans',
-    end: false,
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 shrink-0">
-        <path fillRule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 0 1 3.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 0 1 3.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875Zm6.905 9.97a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 1 0 1.06 1.06l1.72-1.72V18a.75.75 0 0 0 1.5 0v-4.19l1.72 1.72a.75.75 0 1 0 1.06-1.06l-3-3Z" clipRule="evenodd" />
-        <path d="M14.25 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 16.5 7.5h-1.875a.375.375 0 0 1-.375-.375V5.25Z" />
       </svg>
     ),
   },
@@ -67,8 +47,25 @@ const navItems = [
   },
 ]
 
+const newWorkoutIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 shrink-0">
+    <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+  </svg>
+)
+
+const activeWorkoutIcon = (
+  <div className="relative shrink-0">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+      <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.818a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .845-.143Z" clipRule="evenodd" />
+    </svg>
+    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+  </div>
+)
+
 export default function Sidebar() {
   const user = useAuthStore((s) => s.user)
+  const workoutStartTime = useWorkoutStore((s) => s.workoutStartTime)
+  const isWorkoutActive = workoutStartTime !== null
 
   return (
     <aside className="hidden md:flex fixed left-0 top-0 h-full flex-col bg-slate-800 border-r border-slate-700 z-40 w-16 lg:w-60 transition-all duration-200 pt-[env(safe-area-inset-top)]">
@@ -87,7 +84,28 @@ export default function Sidebar() {
       {/* Nav links */}
       <nav className="flex-1 py-4 px-2">
         <ul className="space-y-1">
-          {navItems.map(({ to, label, end, icon }) => (
+          {/* New/Active Workout link */}
+          <li>
+            <NavLink
+              to="/new"
+              end={false}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? isWorkoutActive ? 'bg-green-500/15 text-green-400' : 'bg-brand-500/15 text-brand-400'
+                    : isWorkoutActive ? 'text-green-400 hover:bg-green-500/10 hover:text-green-300' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-100'
+                }`
+              }
+              title={isWorkoutActive ? 'Active Workout' : 'New Workout'}
+            >
+              {isWorkoutActive ? activeWorkoutIcon : newWorkoutIcon}
+              <span className="hidden lg:block">
+                {isWorkoutActive ? 'Active Workout' : 'New Workout'}
+              </span>
+            </NavLink>
+          </li>
+
+          {staticNavItems.map(({ to, label, end, icon }) => (
             <li key={to}>
               <NavLink
                 to={to}

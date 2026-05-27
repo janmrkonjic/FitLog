@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
+import useWorkoutStore from '../../store/workoutStore'
 
-const tabs = [
+const staticTabs = [
   {
     to: '/',
     label: 'Home',
@@ -9,15 +10,6 @@ const tabs = [
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
         <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
         <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
-      </svg>
-    ),
-  },
-  {
-    to: '/new',
-    label: 'New',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-        <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
       </svg>
     ),
   },
@@ -32,16 +24,6 @@ const tabs = [
     ),
   },
   {
-    to: '/plans',
-    label: 'Plans',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-        <path fillRule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 0 1 3.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 0 1 3.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875Zm6.905 9.97a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 1 0 1.06 1.06l1.72-1.72V18a.75.75 0 0 0 1.5 0v-4.19l1.72 1.72a.75.75 0 1 0 1.06-1.06l-3-3Z" clipRule="evenodd" />
-        <path d="M14.25 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 16.5 7.5h-1.875a.375.375 0 0 1-.375-.375V5.25Z" />
-      </svg>
-    ),
-  },
-  {
     to: '/progress',
     label: 'Progress',
     icon: (
@@ -52,13 +34,26 @@ const tabs = [
   },
 ]
 
+function ActiveWorkoutIcon() {
+  return (
+    <div className="relative">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+        <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.818a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .845-.143Z" clipRule="evenodd" />
+      </svg>
+      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+    </div>
+  )
+}
+
 export default function BottomNav() {
   const user = useAuthStore((s) => s.user)
+  const workoutStartTime = useWorkoutStore((s) => s.workoutStartTime)
+  const isWorkoutActive = workoutStartTime !== null
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-40 pb-[env(safe-area-inset-bottom)]">
       <ul className="flex">
-        {tabs.map(({ to, label, icon }) => (
+        {staticTabs.map(({ to, label, icon }) => (
           <li key={to} className="flex-1">
             <NavLink
               to={to}
@@ -76,6 +71,34 @@ export default function BottomNav() {
             </NavLink>
           </li>
         ))}
+
+        {/* New Workout tab — becomes Active Workout when a workout is running */}
+        <li className="flex-1">
+          <NavLink
+            to="/new"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+                isActive
+                  ? isWorkoutActive ? 'text-green-400' : 'text-brand-500'
+                  : isWorkoutActive ? 'text-green-400 hover:text-green-300' : 'text-slate-400 hover:text-slate-200'
+              }`
+            }
+          >
+            {isWorkoutActive ? (
+              <>
+                <ActiveWorkoutIcon />
+                Active
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                  <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+                </svg>
+                New
+              </>
+            )}
+          </NavLink>
+        </li>
 
         {/* Profile tab */}
         <li className="flex-1">

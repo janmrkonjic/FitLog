@@ -9,9 +9,6 @@ import ExerciseDetail from "./pages/ExerciseDetail";
 import History from "./pages/History";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
-import Plans from "./pages/Plans";
-import PlanNew from "./pages/PlanNew";
-import PlanDetail from "./pages/PlanDetail";
 import Login from "./pages/Login";
 import useAuthStore from "./store/authStore";
 
@@ -68,9 +65,6 @@ function AppShell() {
               <Route path="/exercise/:name" element={<ExerciseDetail />} />
               <Route path="/history" element={<History />} />
               <Route path="/progress" element={<Progress />} />
-              <Route path="/plans" element={<Plans />} />
-              <Route path="/plans/new" element={<PlanNew />} />
-              <Route path="/plans/:id" element={<PlanDetail />} />
               <Route path="/profile" element={<Profile />} />
             </Routes>
           </main>
